@@ -5,8 +5,8 @@
 
 export const MAX_ROOM_SIZE = 4;
 export const DEFAULT_PORT = 3001;
-export const DEFAULT_HOST = 'localhost';
-export const DEFAULT_CORS_ORIGIN = 'http://localhost:5173';
+export const DEFAULT_HOST = '0.0.0.0';
+export const DEFAULT_CORS_ORIGIN = '*';
 export const HEALTH_CHECK_PATH = '/api/health';
 export const CONFIG_PATH = '/api/config';
 export const ROOMS_LIST_PATH = '/api/rooms';
