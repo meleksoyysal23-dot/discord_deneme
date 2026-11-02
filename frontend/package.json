@@ -1,10 +1,11 @@
 {
-  "name": "vibe-voice",
+  "name": "voicecan",
+  "productName": "VoiceCan",
   "private": true,
-  "version": "2.0.1",
-  "description": "TeamSpeak benzeri sesli iletişim uygulaması",
+  "version": "2.1.0",
+  "description": "VoiceCan - Sesli Sohbet ve Topluluk Platformu",
   "main": "electron/main.cjs",
-  "author": "Vibe-Voice Team",
+  "author": "Mehmetcan Bayatlı",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,10 +15,14 @@
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder --win",
-    "dist:portable": "npm run build && electron-builder --win portable"
+    "dist:portable": "npm run build && electron-builder --win portable",
+    "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release.ps1",
+    "build:publish": "electron-builder --win --publish always"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.24",
     "electron-updater": "^6.8.11",
+    "livekit-client": "^2.23.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "socket.io-client": "^4.8.4"
@@ -37,10 +42,11 @@
     "wait-on": "^9.5.1"
   },
   "build": {
-    "appId": "com.vibevoice.app",
-    "productName": "Vibe-Voice",
+    "appId": "com.mehmetcanbayatli.voicecan",
+    "productName": "VoiceCan",
+    "copyright": "Copyright © 2026 Mehmetcan Bayatlı",
     "directories": {
-      "output": "dist-exe-v2"
+      "output": "dist-exe-v10"
     },
     "files": [
       "dist/**/*",
@@ -56,7 +62,7 @@
           ]
         }
       ],
-      "icon": "public/icon.ico"
+      "icon": "build/logo.png"
     },
     "nsis": {
       "oneClick": false,
@@ -64,6 +70,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
+    "artifactName": "VoiceCan-Setup-${version}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "meleksoyysal23-dot",
