@@ -4,7 +4,27 @@ import { ControlBar } from './ControlBar';
 import { ShareModal } from './ShareModal';
 import { ConnectionStatus } from './ConnectionStatus';
 import { ChatPanel } from './ChatPanel';
+import { DiscordLayout } from './DiscordLayout';
 import { useChat } from '../hooks/useChat';
+import UpdateStatus from './UpdateStatus';
+
+/**
+ * Son görülme zamanını formatla
+ * @param {number} timestamp - Unix timestamp
+ * @returns {string} Formatlanmış zaman
+ */
+function formatLastSeen(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (seconds < 60) return 'Az önce';
+  if (minutes < 60) return `${minutes} dakika önce`;
+  if (hours < 24) return `${hours} saat önce`;
+  return new Date(timestamp).toLocaleDateString('tr-TR');
+}
 
 /**
  * Room Component
@@ -26,6 +46,10 @@ import { useChat } from '../hooks/useChat';
  * @param {function} props.onShareLink - Link paylaşma fonksiyonu
  * @param {string} props.shareLink - Paylaşılacak link
  * @param {import('socket.io-client').Socket|null} props.socket - Socket.io instance
+ * @param {number} props.masterVolume - Ana ses seviyesi (0-1)
+ * @param {function} props.onMasterVolumeChange - Ana ses seviyesi değişim fonksiyonu
+ * @param {function} props.onPeerVolumeChange - Kullanıcı ses seviyesi değişim fonksiyonu
+ * @param {object} props.userVolumes - Kullanıcı ses seviyeleri { userId: volume }
  */
 export function Room({
   roomId,
@@ -44,6 +68,10 @@ export function Room({
   onShareLink,
   shareLink,
   socket,
+  masterVolume = 1,
+  onMasterVolumeChange,
+  onPeerVolumeChange,
+  userVolumes = {},
 }) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -106,52 +134,90 @@ export function Room({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
-      {/* Header */}
-      <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <DiscordLayout
+      username={username}
+      roomId={roomId}
+      chatOpen={isChatOpen}
+      onToggleChat={toggleChat}
+      chatPanel={
+        <ChatPanel
+          isOpen={isChatOpen}
+          messages={messages}
+          onSendMessage={sendMessage}
+          localUserId={localUserId}
+          usernames={usernames}
+          messagesEndRef={messagesEndRef}
+          onClose={closeChat}
+        />
+      }
+    >
+      {/* Sesli Kanal Grid */}
+      <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {/* Header */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 p-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+              <div className="text-gray-400 text-sm">
+                <span className="font-medium text-white">{users.length}</span>/4 kullanıcı
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">Vibe-Voice</h1>
-                <p className="text-xs text-slate-400">Oda: {roomId}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-400">
-              <span className="font-medium text-white">{users.length}</span>/4 kullanıcı
             </div>
             <ConnectionStatus isConnected={isConnected} connectionError={connectionError} />
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full flex gap-4">
-          {/* Sol: Kullanıcı Grid + Kontrol */}
-          <div className="flex-1">
+        {/* Update Status */}
+        <div className="px-4 pt-4">
+          <div className="max-w-4xl mx-auto">
+            <UpdateStatus />
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
+          <div className="max-w-4xl w-full">
             {/* Users Grid */}
             <div className="grid grid-cols-2 gap-6 md:gap-8 mb-8">
               {enrichedUsers.map((user) => (
-                <UserAvatar
-                  key={user.userId}
-                  user={user}
-                  volume={user.volume}
-                  isLocalUser={user.isLocalUser}
-                  username={user.isLocalUser ? username : undefined}
-                />
+                <div key={user.userId} className="flex flex-col items-center gap-2">
+                  <UserAvatar
+                    user={user}
+                    volume={user.volume}
+                    isLocalUser={user.isLocalUser}
+                    username={user.isLocalUser ? username : undefined}
+                  />
+
+                  {/* Son Görülme (sadece remote kullanıcılar için) */}
+                  {!user.isLocalUser && user.lastSeen && (
+                    <div className="text-xs text-slate-400 text-center">
+                      {user.isOnline ? '🟢 Çevrimiçi' : `Son görülme: ${formatLastSeen(user.lastSeen)}`}
+                    </div>
+                  )}
+                  
+                  {/* Per-user volume slider (sadece remote kullanıcılar için) */}
+                  {!user.isLocalUser && (
+                    <div className="w-full max-w-[120px] px-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={userVolumes[user.userId] ?? 1}
+                        onChange={(e) => {
+                          const volume = parseFloat(e.target.value);
+                          if (onPeerVolumeChange) {
+                            onPeerVolumeChange(user.userId, volume);
+                          }
+                        }}
+                        className="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        aria-label={`${user.username || user.userId} ses seviyesi`}
+                        title="Kullanıcı ses seviyesi"
+                      />
+                      <div className="text-xs text-slate-400 text-center mt-1">
+                        {Math.round((userVolumes[user.userId] ?? 1) * 100)}%
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
 
               {/* Empty slots */}
@@ -160,9 +226,9 @@ export function Room({
                   key={`empty-${index}`}
                   className="flex flex-col items-center gap-2"
                 >
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-slate-800 border-2 border-dashed border-slate-700 flex items-center justify-center">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-800 border-2 border-dashed border-gray-700 flex items-center justify-center">
                     <svg
-                      className="w-8 h-8 text-slate-600"
+                      className="w-8 h-8 text-gray-600"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -173,7 +239,7 @@ export function Room({
                       />
                     </svg>
                   </div>
-                  <p className="text-sm text-slate-600">Boş</p>
+                  <p className="text-sm text-gray-600">Boş</p>
                 </div>
               ))}
             </div>
@@ -189,23 +255,10 @@ export function Room({
               onToggleChat={toggleChat}
               isChatOpen={isChatOpen}
               unreadCount={unreadCount}
+              masterVolume={masterVolume}
+              onMasterVolumeChange={onMasterVolumeChange}
             />
           </div>
-
-          {/* Sağ: ChatPanel (açık/kapalı) */}
-          {isChatOpen && (
-            <div className="w-80 flex-shrink-0">
-              <ChatPanel
-                isOpen={isChatOpen}
-                messages={messages}
-                onSendMessage={sendMessage}
-                localUserId={localUserId}
-                usernames={usernames}
-                messagesEndRef={messagesEndRef}
-                onClose={closeChat}
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -215,6 +268,6 @@ export function Room({
         onClose={handleCloseShareModal}
         shareLink={shareLink}
       />
-    </div>
+    </DiscordLayout>
   );
 }

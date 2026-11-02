@@ -474,15 +474,35 @@ export class WebRTCService {
       }
     };
 
-    // ICE connection state change (fallback for older browsers)
+    // ICE connection state change - auto-restart mekanizması
     peerConnection.oniceconnectionstatechange = () => {
       const iceState = peerConnection.iceConnectionState;
+      console.log(`ICE connection state for ${peerUserId}:`, iceState);
 
-      if (iceState === 'failed') {
-        console.warn(`ICE connection failed for ${peerUserId}, attempting restart...`);
-        peerConnection.restartIce();
+      if (iceState === 'failed' || iceState === 'disconnected') {
+        console.warn(`ICE connection ${iceState} for ${peerUserId}, attempting restart...`);
+        // 1 saniye bekle, sonra ICE restart dene
+        setTimeout(() => {
+          if (this.peerConnections.has(peerUserId)) {
+            this.restartIce(peerUserId);
+          }
+        }, 1000);
       }
     };
+
+    // Connection state monitoring
+    peerConnection.addEventListener('connectionstatechange', () => {
+      const connState = peerConnection.connectionState;
+      console.log(`Connection state for ${peerUserId}:`, connState);
+
+      if (connState === 'failed') {
+        console.error(`Connection failed for ${peerUserId}, removing peer...`);
+        if (this.onPeerDisconnected) {
+          this.onPeerDisconnected(peerUserId);
+        }
+        this.closePeerConnection(peerUserId);
+      }
+    });
 
     // Negotiation needed (renegotiation için)
     peerConnection.onnegotiationneeded = async () => {
@@ -537,6 +557,38 @@ export class WebRTCService {
       console.error(`Create offer failed for peer ${peerUserId}:`, error);
       this._reportError(error, 'createOffer');
       throw error;
+    }
+  }
+
+  /**
+   * ICE restart mekanizması - bağlantı koptuğunda otomatik yeniden bağlanma
+   * @param {string} peerUserId
+   */
+  async restartIce(peerUserId) {
+    const peerConnection = this.peerConnections.get(peerUserId);
+    if (!peerConnection) {
+      console.warn(`restartIce: no peer connection for ${peerUserId}`);
+      return;
+    }
+
+    try {
+      console.log(`Restarting ICE for peer: ${peerUserId}`);
+
+      // ICE restart ile yeni offer oluştur
+      const offer = await peerConnection.createOffer({ iceRestart: true });
+      await peerConnection.setLocalDescription(offer);
+
+      // Offer'ı signaling server'a gönder
+      this.socket.emit('signal-offer', {
+        targetUserId: peerUserId,
+        offer: offer,
+        roomId: this.roomId,
+      });
+
+      console.log(`ICE restart initiated for peer: ${peerUserId}`);
+    } catch (error) {
+      console.error(`ICE restart failed for peer ${peerUserId}:`, error);
+      this._reportError(error, 'restartIce');
     }
   }
 
@@ -772,5 +824,21 @@ export class WebRTCService {
       }
     }
     return connected;
+  }
+
+  /**
+   * Tüm peer bağlantılarının durumunu al
+   * @returns {Array<{peerUserId: string, state: string, iceState: string}>}
+   */
+  getPeerStates() {
+    const states = [];
+    for (const [peerUserId, pc] of this.peerConnections) {
+      states.push({
+        peerUserId,
+        state: pc.connectionState,
+        iceState: pc.iceConnectionState,
+      });
+    }
+    return states;
   }
 }

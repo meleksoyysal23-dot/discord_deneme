@@ -17,7 +17,13 @@ import {
   joinRoom,
   leaveRoom,
   getUsersInRoom,
+  updateUserLastSeen,
 } from './roomManager.js';
+import {
+  GENDER_OPTIONS,
+  AVATAR_ID_MIN,
+  AVATAR_ID_MAX,
+} from '../constants.js';
 
 /**
  * Room ID validation
@@ -80,7 +86,51 @@ function validateUserId(userId) {
  */
 function broadcastRoomUsers(io, roomId) {
   const users = getUsersInRoom(roomId);
-  io.to(roomId).emit('room-users', { roomId, users });
+  // socketId'yi gizle (güvenlik), sadece profil bilgilerini gönder
+  const safeUsers = users.map((u) => ({
+    userId: u.userId,
+    gender: u.gender,
+    avatar: u.avatar,
+    lastSeen: u.lastSeen,
+    isOnline: u.isOnline,
+  }));
+  io.to(roomId).emit('room-users', { roomId, users: safeUsers });
+}
+
+/**
+ * Gender validation
+ * @param {*} gender
+ * @returns {{ valid: boolean, error?: string, value?: string|null }}
+ */
+function validateGender(gender) {
+  if (gender === null || gender === undefined) {
+    return { valid: true, value: null };
+  }
+  if (typeof gender !== 'string') {
+    return { valid: false, error: 'gender must be a string or null' };
+  }
+  if (!GENDER_OPTIONS.includes(gender)) {
+    return { valid: false, error: 'gender must be "male", "female", or null' };
+  }
+  return { valid: true, value: gender };
+}
+
+/**
+ * Avatar ID validation
+ * @param {*} avatar
+ * @returns {{ valid: boolean, error?: string, value?: number|null }}
+ */
+function validateAvatar(avatar) {
+  if (avatar === null || avatar === undefined) {
+    return { valid: true, value: null };
+  }
+  if (typeof avatar !== 'number' || !Number.isInteger(avatar)) {
+    return { valid: false, error: 'avatar must be an integer or null' };
+  }
+  if (avatar < AVATAR_ID_MIN || avatar > AVATAR_ID_MAX) {
+    return { valid: false, error: `avatar must be between ${AVATAR_ID_MIN} and ${AVATAR_ID_MAX}` };
+  }
+  return { valid: true, value: avatar };
 }
 
 /**
@@ -182,6 +232,9 @@ function handleChatMessage(socket, io, data, callback) {
       return cb({ success: false, error: 'User ID mismatch' });
     }
 
+    // Last seen güncelle
+    updateUserLastSeen(userId);
+
     // Broadcast to room (sender hariç)
     const timestamp = Date.now();
     socket.to(roomId).emit('chat-message', {
@@ -217,7 +270,7 @@ export function registerSocketHandlers(socket, io) {
     try {
       const cb = typeof callback === 'function' ? callback : () => {};
 
-      const { roomId: roomRaw, userId: userRaw } = payload || {};
+      const { roomId: roomRaw, userId: userRaw, gender, avatar } = payload || {};
 
       const roomCheck = validateRoomId(roomRaw);
       if (!roomCheck.valid) {
@@ -231,6 +284,18 @@ export function registerSocketHandlers(socket, io) {
         return cb({ success: false, error: userCheck.error });
       }
 
+      const genderCheck = validateGender(gender);
+      if (!genderCheck.valid) {
+        logger.warn(`join-room rejected for ${socket.id}: ${genderCheck.error}`);
+        return cb({ success: false, error: genderCheck.error });
+      }
+
+      const avatarCheck = validateAvatar(avatar);
+      if (!avatarCheck.valid) {
+        logger.warn(`join-room rejected for ${socket.id}: ${avatarCheck.error}`);
+        return cb({ success: false, error: avatarCheck.error });
+      }
+
       const roomId = roomCheck.value;
       const userId = userCheck.value;
 
@@ -239,7 +304,10 @@ export function registerSocketHandlers(socket, io) {
         handleLeaveRoom(socket, io, { silent: true });
       }
 
-      const result = joinRoom(roomId, userId, socket.id);
+      const result = joinRoom(roomId, userId, socket.id, {
+        gender: genderCheck.value,
+        avatar: avatarCheck.value,
+      });
       if (!result.success) {
         logger.warn(
           `join-room failed for user ${userId} in room ${roomId}: ${result.error}`
@@ -264,13 +332,20 @@ export function registerSocketHandlers(socket, io) {
       broadcastRoomUsers(io, roomId);
 
       // Yeni katılana özel user-joined event (diğerleri zaten room-users aldı)
+      const safeUsers = users.map((u) => ({
+        userId: u.userId,
+        gender: u.gender,
+        avatar: u.avatar,
+        lastSeen: u.lastSeen,
+        isOnline: u.isOnline,
+      }));
       socket.to(roomId).emit('user-joined', {
         roomId,
         userId,
-        users,
+        users: safeUsers,
       });
 
-      cb({ success: true, roomId, users });
+      cb({ success: true, roomId, users: safeUsers });
     } catch (err) {
       logger.error(`join-room handler error for ${socket.id}:`, err.message);
       const cb = typeof callback === 'function' ? callback : () => {};
@@ -480,10 +555,18 @@ function handleLeaveRoom(socket, io, options = {}) {
   // Oda hala varsa kalanlara broadcast et
   if (!result.roomEmpty) {
     broadcastRoomUsers(io, roomId);
+    const users = getUsersInRoom(roomId);
+    const safeUsers = users.map((u) => ({
+      userId: u.userId,
+      gender: u.gender,
+      avatar: u.avatar,
+      lastSeen: u.lastSeen,
+      isOnline: u.isOnline,
+    }));
     io.to(roomId).emit('user-left', {
       roomId,
       userId,
-      users: getUsersInRoom(roomId),
+      users: safeUsers,
     });
   }
 

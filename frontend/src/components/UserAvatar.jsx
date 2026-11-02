@@ -1,27 +1,60 @@
 import React, { useMemo } from 'react';
 import { getDisplayName, getInitial } from '../utils/username';
 
+// Avatar listesi (Lobby.jsx ile aynı)
+const AVATARS = [
+  { id: 1, emoji: '🦊' },
+  { id: 2, emoji: '🐺' },
+  { id: 3, emoji: '🦁' },
+  { id: 4, emoji: '🐯' },
+  { id: 5, emoji: '🐻' },
+  { id: 6, emoji: '🐼' },
+  { id: 7, emoji: '🐨' },
+  { id: 8, emoji: '🐸' },
+  { id: 9, emoji: '🦄' },
+  { id: 10, emoji: '🐲' },
+  { id: 11, emoji: '🦋' },
+  { id: 12, emoji: '🌸' },
+  { id: 13, emoji: '⭐' },
+  { id: 14, emoji: '🌙' },
+  { id: 15, emoji: '🔥' },
+  { id: 16, emoji: '💎' },
+  { id: 17, emoji: '🎮' },
+  { id: 18, emoji: '🎵' },
+  { id: 19, emoji: '🚀' },
+  { id: 20, emoji: '💀' },
+];
+
 /**
  * UserAvatar Component
  * Kullanıcı avatarı ve konuşma göstergesi
  * @param {object} props
- * @param {object} props.user - Kullanıcı bilgisi { userId, isMuted }
+ * @param {object} props.user - Kullanıcı bilgisi { userId, isMuted, gender, avatar }
  * @param {number} props.volume - Ses seviyesi (0-1)
  * @param {boolean} props.isLocalUser - Yerel kullanıcı mı?
  * @param {string} props.username - Kullanıcı adı (opsiyonel)
  */
 export const UserAvatar = React.memo(function UserAvatar({ user, volume = 0, isLocalUser = false, username }) {
-  const { userId, isMuted } = user;
+  const { userId, isMuted, gender, avatar } = user;
 
   // Görüntülenecek isim
   const displayName = useMemo(() => {
     return getDisplayName(userId, username);
   }, [userId, username]);
 
-  // İsim baş harfi
+  // İsim baş harfi (fallback için)
   const initial = useMemo(() => {
     return getInitial(username, userId);
   }, [username, userId]);
+
+  // Avatar emoji
+  const avatarEmoji = useMemo(() => {
+    if (avatar) {
+      const avatarData = AVATARS.find((a) => a.id === avatar);
+      return avatarData ? avatarData.emoji : null;
+    }
+    return null;
+  }, [avatar]);
 
   // Glow efekti için hesaplamalar
   const glowIntensity = useMemo(() => {
@@ -47,8 +80,17 @@ export const UserAvatar = React.memo(function UserAvatar({ user, volume = 0, isL
           className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl md:text-3xl font-bold transition-all duration-150"
           style={{ boxShadow }}
         >
-          {initial}
+          {avatarEmoji || initial}
         </div>
+
+        {/* Gender badge */}
+        {gender && (
+          <div className={`absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white text-sm border-2 border-slate-800 ${
+            gender === 'male' ? 'bg-blue-600' : 'bg-pink-600'
+          }`}>
+            {gender === 'male' ? '♂' : '♀'}
+          </div>
+        )}
 
         {/* Mute indicator */}
         {isMuted && (

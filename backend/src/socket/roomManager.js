@@ -38,9 +38,12 @@ export function createRoom(roomId) {
  * @param {string} roomId
  * @param {string} userId
  * @param {string} socketId
+ * @param {object} profile - Kullanıcı profil bilgileri
+ * @param {'male'|'female'|null} profile.gender - Cinsiyet
+ * @param {number|null} profile.avatar - Avatar ID (1-20)
  * @returns {{ success: boolean, error?: string, room?: object }}
  */
-export function joinRoom(roomId, userId, socketId) {
+export function joinRoom(roomId, userId, socketId, profile = {}) {
   let room = rooms.get(roomId);
 
   if (!room) {
@@ -62,10 +65,15 @@ export function joinRoom(roomId, userId, socketId) {
     );
   }
 
+  const now = Date.now();
   room.users.set(userId, {
     socketId,
     userId,
-    joinedAt: Date.now(),
+    joinedAt: now,
+    gender: profile.gender || null,
+    avatar: profile.avatar || null,
+    lastSeen: now,
+    isOnline: true,
   });
 
   logger.info(
@@ -125,7 +133,7 @@ export function getRoom(roomId) {
 /**
  * Odadaki kullanıcı listesini al
  * @param {string} roomId
- * @returns {Array<{ userId: string, socketId: string }>}
+ * @returns {Array<{ userId: string, socketId: string, gender: string|null, avatar: number|null, lastSeen: number, isOnline: boolean }>}
  */
 export function getUsersInRoom(roomId) {
   const room = rooms.get(roomId);
@@ -134,7 +142,48 @@ export function getUsersInRoom(roomId) {
   return Array.from(room.users.values()).map((u) => ({
     userId: u.userId,
     socketId: u.socketId,
+    gender: u.gender,
+    avatar: u.avatar,
+    lastSeen: u.lastSeen,
+    isOnline: u.isOnline,
   }));
+}
+
+/**
+ * Kullanıcının son görülme zamanını güncelle
+ * @param {string} userId
+ */
+export function updateUserLastSeen(userId) {
+  for (const room of rooms.values()) {
+    const user = room.users.get(userId);
+    if (user) {
+      user.lastSeen = Date.now();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Kullanıcı bilgisi al
+ * @param {string} userId
+ * @returns {object|null}
+ */
+export function getUser(userId) {
+  for (const room of rooms.values()) {
+    const user = room.users.get(userId);
+    if (user) {
+      return {
+        userId: user.userId,
+        socketId: user.socketId,
+        gender: user.gender,
+        avatar: user.avatar,
+        lastSeen: user.lastSeen,
+        isOnline: user.isOnline,
+      };
+    }
+  }
+  return null;
 }
 
 /**

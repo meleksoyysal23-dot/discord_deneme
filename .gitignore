@@ -5,6 +5,8 @@ node_modules/
 dist/
 release/
 frontend/dist-electron/
+frontend/dist-exe/
+frontend/dist/
 frontend/release/
 
 # Environment variables

@@ -28,9 +28,13 @@ function App() {
     localVolume,
     isMuted,
     isDeafened,
+    userVolumes,
+    masterVolume,
     initializeMedia,
     toggleMute,
     toggleDeafen,
+    setPeerVolume,
+    setAllVolumes,
   } = useWebRTC(localUserId, currentRoom, socket);
 
   // Oda seçildiğinde mikrofon izni iste
@@ -79,6 +83,10 @@ function App() {
         onShareLink={() => {}}
         shareLink={getShareableLink() || ''}
         socket={socket}
+        masterVolume={masterVolume}
+        onMasterVolumeChange={setAllVolumes}
+        onPeerVolumeChange={setPeerVolume}
+        userVolumes={userVolumes}
       />
     </Suspense>
   );

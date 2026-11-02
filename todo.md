@@ -118,10 +118,110 @@
 
 ---
 
+## 🚀 VAZ 11: DİSCORD/KİCK HİBRİT ARAYÜZ VE GELİŞMİŞ ÖZELLİKLER
+
+**Hedef:** Mevcut 4 kişilik sesli iletişim altyapısını Discord/Kick hibrit profesyonel masaüstü uygulamasına dönüştür.
+
+### GRUP A: Arayüz Redesign (Discord & Kick Hibrit) 🎨 ✅ TAMAMLANDI
+- [x] A1: Sol Sidebar (Discord tarzı sunucu/kanal ağacı)
+- [x] A2: Orta Alan (Ses/Video Grid - yuvarlak avatarlar)
+- [x] A3: Sağ Chat Panel (Kick tarzı toggle)
+- [x] A4: Responsive layout (1200x800 Electron penceresi)
+- [x] QA & Security: ✅ TEMİZ
+
+### GRUP B: Ses Stabilitesi 🔊 ✅ TAMAMLANDI
+- [x] B1: Auto-reconnect mekanizması (ICE candidate kopması)
+- [x] B2: ICE restart (bağlantı kopunca otomatik yenileme)
+- [x] B3: User volume control (her kullanıcının sesini kısma)
+- [x] B4: Local mute/deafen kontrolleri (test)
+- [x] QA & Security: ✅ TEMİZ
+
+### GRUP C: Kullanıcı Profilleri 👤 ✅ TAMAMLANDI
+- [x] C0: Backend - User object yapısı (gender, avatar, lastSeen, isOnline)
+- [x] C1: Cinsiyet rozetleri (erkek/kız ikonu - ♂ mavi, ♀ pembe)
+- [x] C2: Son görülme (Last Seen) - canlı takip (formatLastSeen helper)
+- [x] C3: Hazır avatar seçimi (20 emoji avatar - 🦊🐺🦁🐯🐻🐼🐨🐸🦄🐲🦋🌸⭐🌙🔥💎🎮🎵🚀💀)
+- [x] C4: Profil kartı (avatar + isim + cinsiyet + son görülme)
+- [x] QA & Security: ✅ TEMİZ (Backend + Frontend)
+
+### GRUP D: Arkadaşlık Sistemi 🤝 ✅ TAMAMLANDI
+- [x] D1: Arkadaş ekleme (kullanıcı adı ile)
+- [x] D2: Arkadaşlık isteği gönderme/alma
+- [x] D3: Kabul/Reddet butonları
+- [x] D4: Arkadaş listesi paneli (FriendsPanel.jsx - sol sidebar)
+- [x] QA & Security: ✅ TEMİZ (Backend + Frontend)
+
+### GRUP E: Chat Özellikleri 💬 ✅ TAMAMLANDI
+- [x] E1: @Mention parsing (regex: /@([a-zA-Z0-9_]{3,20})/g)
+- [x] E2: Glow/highlight efekti (mavi parlama animasyonu - @keyframes mentionGlow)
+- [x] E3: Bildirim sesi (mention alındığında Web Audio API)
+- [x] Max 10 mention/message limiti (DoS koruması)
+- [x] QA & Security: ✅ TEMİZ (Backend + Frontend)
+
+### GRUP F: Oylama Sistemi 📊 ✅ TAMAMLANDI
+- [x] F1: Poll oluşturma (soru + 2-5 şık)
+- [x] F2: Oy verme (tek oy hakkı - userId bazlı)
+- [x] F3: Canlı sonuç gösterimi (yüzde + progress bar)
+- [x] F4: Poll bitirme (sadece oluşturan kapatabilir)
+- [x] QA & Security: ✅ TEMİZ (Backend + Frontend)
+
+### GRUP G: Oda Güvenliği 🔒 ✅ TAMAMLANDI
+- [x] G1: Oda şifresi oluşturma (opsiyonel, in-memory)
+- [x] G2: Şifreli oda giriş ekranı (PasswordModal.jsx)
+- [x] G3: Davet linki oluşturma (8 karakter random code)
+- [x] G4: Şifre doğrulama (backend)
+- [x] QA & Security: ✅ TEMİZ (Backend + Frontend)
+
+---
+
+## 🚀 FAZ 12: OTOMATİK GÜNCELLEME SİSTEMİ (AUTO-UPDATER)
+
+**Hedef:** Electron masaüstü uygulamasına otomatik güncelleme mekanizması eklemek.
+
+### GÖREV 1+2: electron-updater Entegrasyonu ✅ TAMAMLANDI
+- [x] electron-updater paketi kuruldu (v6.8.11)
+- [x] main.cjs autoUpdater entegrasyonu (6 event listener)
+- [x] preload.cjs IPC kanalları (onUpdateStatus, onUpdateProgress, onUpdateError, checkForUpdates)
+- [x] package.json publish config (GitHub Releases - meleksoyysal23-dot/discord_deneme)
+- [x] Version numarası 2.0.1
+- [x] autoUpdater.autoDownload = false (kullanıcı onayı gerekli)
+- [x] autoUpdater.autoInstallOnAppQuit = true
+- [x] 3 saniye sonra otomatik güncelleme kontrolü
+- [x] Dialog ile kullanıcı bilgilendirme
+- [x] QA & Security: ✅ TEMİZ
+
+### GÖREV 3: Güncelleme UI Component ✅ TAMAMLANDI
+- [x] UpdateStatus.jsx component oluşturuldu (3833 bytes)
+- [x] Durum göstergesi: idle, checking, available, not-available, downloading, downloaded, error
+- [x] Progress bar (indirme yüzdesi)
+- [x] Manuel kontrol butonu
+- [x] Lobby.jsx'e entegre edildi (hem profile hem room step)
+- [x] Room.jsx'e entegre edildi (header altında)
+- [x] Electron ortamında değilse hiçbir şey göstermiyor (web'de gizli)
+- [x] useEffect cleanup function (memory leak düzeltmesi)
+- [x] preload.cjs unsubscribe fonksiyonları (removeListener)
+- [x] QA & Security: ✅ TEMİZ (memory leak düzeltildi)
+
+### GÖREV 4: Güncelleme Rehberi ✅ TAMAMLANDI
+- [x] GUNCELLEME_REHBERI.md oluşturuldu (249 satır, 6559 bytes)
+- [x] Version kuralları (Semantic Versioning: PATCH/MINOR/MAJOR)
+- [x] 7 adımlı güncelleme süreci (package.json → kod → build → dist → push → release → kontrol)
+- [x] GitHub Release adımları (Web + CLI)
+- [x] Manuel güncelleme kontrolü
+- [x] Sorun giderme (3 senaryo)
+- [x] Güncelleme geçmişi (v1.0.0 → v2.0.0 → v2.0.1)
+- [x] Güvenlik bilgisi
+- [x] QA & Security: ✅ TEMİZ
+
+---
+
+---
+
 ## 🎯 Proje Özeti
 
-**Proje:** Vibe-Voice (TeamSpeak benzeri sesli iletişim uygulaması)  
+**Proje:** Vibe-Voice V2.0.1 (TeamSpeak benzeri sesli iletişim + Discord/Kick hibrit arayüz + Auto-Updater)  
 **Durum:** ✅ **TAMAMLANDI - TESLİM EDİLEBİLİR**
+**Son Güncelleme:** 02.11.2026 04:40 (Faz 12 tamamlandı)
 
 ### Temel Özellikler:
 - ✅ WebRTC P2P mesh topolojisi (4 kullanıcı max)

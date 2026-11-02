@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { getGender, getAvatar } from '../utils/username';
 
 /**
  * Oda yönetimi hook'u
@@ -35,7 +36,16 @@ export function useRoom(socket, localUserId) {
         return;
       }
 
-      socket.emit('join-room', { roomId, userId: localUserId }, (response) => {
+      // Profil bilgilerini al
+      const gender = getGender();
+      const avatar = getAvatar();
+
+      socket.emit('join-room', { 
+        roomId, 
+        userId: localUserId,
+        gender,  // 'male' | 'female' | null
+        avatar,  // 1-20 arası sayı | null
+      }, (response) => {
         if (response.success) {
           setCurrentRoom(roomId);
           setUsers(response.users || []);

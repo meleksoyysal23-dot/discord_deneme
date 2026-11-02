@@ -1,7 +1,7 @@
 {
   "name": "vibe-voice",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "TeamSpeak benzeri sesli iletişim uygulaması",
   "main": "electron/main.cjs",
   "author": "Vibe-Voice Team",
@@ -17,6 +17,7 @@
     "dist:portable": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "socket.io-client": "^4.8.4"
@@ -39,7 +40,7 @@
     "appId": "com.vibevoice.app",
     "productName": "Vibe-Voice",
     "directories": {
-      "output": "release"
+      "output": "dist-exe"
     },
     "files": [
       "dist/**/*",
@@ -62,6 +63,12 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "meleksoyysal23-dot",
+      "repo": "discord_deneme",
+      "releaseType": "release"
     }
   }
 }

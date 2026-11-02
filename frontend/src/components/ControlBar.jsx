@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 /**
  * ControlBar Component
@@ -13,6 +13,8 @@ import React from 'react';
  * @param {function} props.onToggleChat - Chat panelini aç/kapat
  * @param {boolean} props.isChatOpen - Chat paneli açık mı?
  * @param {number} props.unreadCount - Okunmamış mesaj sayısı
+ * @param {number} props.masterVolume - Ana ses seviyesi (0-1)
+ * @param {function} props.onMasterVolumeChange - Ana ses seviyesi değişim fonksiyonu
  */
 export const ControlBar = React.memo(function ControlBar({
   isMuted,
@@ -24,7 +26,17 @@ export const ControlBar = React.memo(function ControlBar({
   onToggleChat,
   isChatOpen,
   unreadCount = 0,
+  masterVolume = 1,
+  onMasterVolumeChange,
 }) {
+  const [showVolumeControl, setShowVolumeControl] = useState(false);
+
+  const handleVolumeChange = (e) => {
+    const volume = parseFloat(e.target.value);
+    if (onMasterVolumeChange) {
+      onMasterVolumeChange(volume);
+    }
+  };
   return (
     <div className="flex items-center justify-center gap-4 p-4 bg-slate-800 rounded-xl">
       {/* Mute Button */}
@@ -107,6 +119,52 @@ export const ControlBar = React.memo(function ControlBar({
           </span>
         )}
       </button>
+
+      {/* Volume Control Button */}
+      <div className="relative">
+        <button
+          onClick={() => setShowVolumeControl(!showVolumeControl)}
+          className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+          aria-label="Ses seviyesi"
+          title="Ses seviyesi"
+        >
+          <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.701.705L4.857 13.36A1 1 0 004 12.646V7.354a1 1 0 00-.857-.64L1.701 3.372A1 1 0 013.383 2.076L6 4.686V4a4 4 0 018 0v.686l2.617-2.61A1 1 0 0118.383 3.372L15 6.757V12.646a1 1 0 01-.857.994l-3.442 3.34A1 1 0 019 16V4a1 1 0 01.383-.924z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+
+        {/* Volume Slider Popup */}
+        {showVolumeControl && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-800 rounded-lg p-3 shadow-xl border border-slate-700 min-w-[200px]">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.701.705L4.857 13.36A1 1 0 004 12.646V7.354a1 1 0 00-.857-.64L1.701 3.372A1 1 0 013.383 2.076L6 4.686V4a4 4 0 018 0v.686l2.617-2.61A1 1 0 0118.383 3.372L15 6.757V12.646a1 1 0 01-.857.994l-3.442 3.34A1 1 0 019 16V4a1 1 0 01.383-.924z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={masterVolume}
+                onChange={handleVolumeChange}
+                className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                aria-label="Ana ses seviyesi"
+              />
+              <span className="text-xs text-slate-300 w-10 text-right">
+                {Math.round(masterVolume * 100)}%
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Share Link Button */}
       <button

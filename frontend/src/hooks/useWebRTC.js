@@ -18,6 +18,10 @@ export function useWebRTC(localUserId, roomId, socket) {
   const [isDeafened, setIsDeafened] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [mediaError, setMediaError] = useState(null);
+  
+  // Volume kontrol state'leri
+  const [userVolumes, setUserVolumes] = useState({}); // { userId: volume (0-1) }
+  const [masterVolume, setMasterVolume] = useState(1); // Global volume (0-1)
 
   const webrtcRef = useRef(null);
   const audioElementsRef = useRef(new Map()); // peerUserId -> HTMLAudioElement
@@ -75,6 +79,10 @@ export function useWebRTC(localUserId, roomId, socket) {
     audio.autoplay = true;
     audio.muted = false; // Deafened durumu ayrıca yönetilecek
 
+    // Kullanıcıya özel volume uygula
+    const userVolume = userVolumes[userId] ?? 1;
+    audio.volume = userVolume * masterVolume;
+
     // Ses bittiğinde yeniden başlatmayı engelle
     audio.onended = () => {
       console.warn(`Audio stream ended for peer ${userId}`);
@@ -102,7 +110,7 @@ export function useWebRTC(localUserId, roomId, socket) {
     if (isDeafenedRef.current) {
       audio.muted = true;
     }
-  }, [removeAudioElement]);
+  }, [removeAudioElement, userVolumes, masterVolume]);
 
   // WebRTC servisini başlat ve socket event listener'ları kur
   useEffect(() => {
@@ -350,11 +358,42 @@ export function useWebRTC(localUserId, roomId, socket) {
    * @param {number} volume 0-1 arası
    */
   const setPeerVolume = useCallback((userId, volume) => {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
+    
+    // State'i güncelle
+    setUserVolumes(prev => ({ ...prev, [userId]: clampedVolume }));
+    
+    // Audio element'in ses seviyesini ayarla
     const audio = audioElementsRef.current.get(userId);
     if (audio) {
-      audio.volume = Math.max(0, Math.min(1, volume));
+      // Master volume ile çarp
+      audio.volume = clampedVolume * masterVolume;
     }
-  }, []);
+  }, [masterVolume]);
+
+  /**
+   * Tüm kullanıcıların ses seviyesini ayarla (master volume)
+   * @param {number} volume 0-1 arası
+   */
+  const setAllVolumes = useCallback((volume) => {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
+    setMasterVolume(clampedVolume);
+    
+    // Tüm audio element'leri güncelle
+    for (const [userId, audio] of audioElementsRef.current) {
+      const userVolume = userVolumes[userId] ?? 1;
+      audio.volume = userVolume * clampedVolume;
+    }
+  }, [userVolumes]);
+
+  /**
+   * Belirli bir kullanıcının ses seviyesini al
+   * @param {string} userId
+   * @returns {number} 0-1 arası
+   */
+  const getUserVolume = useCallback((userId) => {
+    return userVolumes[userId] ?? 1;
+  }, [userVolumes]);
 
   return {
     // State
@@ -364,6 +403,8 @@ export function useWebRTC(localUserId, roomId, socket) {
     isDeafened,
     isInitialized,
     mediaError,
+    userVolumes,
+    masterVolume,
 
     // Actions
     initializeMedia,
@@ -371,5 +412,7 @@ export function useWebRTC(localUserId, roomId, socket) {
     toggleDeafen,
     setPeerMuted,
     setPeerVolume,
+    setAllVolumes,
+    getUserVolume,
   };
 }

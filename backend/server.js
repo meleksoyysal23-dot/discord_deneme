@@ -208,7 +208,13 @@ app.get(ROOM_DETAIL_PATH, roomsLimiter, (req, res) => {
     roomId: room.roomId,
     userCount: users.length,
     maxSize: config.maxRoomSize,
-    users: users.map((u) => ({ userId: u.userId })), // socketId gizli (güvenlik)
+    users: users.map((u) => ({
+      userId: u.userId,
+      gender: u.gender,
+      avatar: u.avatar,
+      lastSeen: u.lastSeen,
+      isOnline: u.isOnline,
+    })), // socketId gizli (güvenlik)
     createdAt: room.createdAt,
   });
 });

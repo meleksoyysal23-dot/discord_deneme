@@ -42,3 +42,8 @@ export const RATE_LIMIT_ROOMS_MAX = 50;
 export const CHAT_MESSAGE_MAX_LENGTH = 500;
 export const CHAT_RATE_LIMIT = 10; // 10 saniyede max 10 mesaj
 export const CHAT_RATE_WINDOW = 10000; // 10 saniye
+
+// User profile
+export const GENDER_OPTIONS = ['male', 'female', null];
+export const AVATAR_ID_MIN = 1;
+export const AVATAR_ID_MAX = 20;
