@@ -6,6 +6,7 @@ dist/
 release/
 frontend/dist-electron/
 frontend/dist-exe/
+frontend/dist-exe-v2/
 frontend/dist/
 frontend/release/
 

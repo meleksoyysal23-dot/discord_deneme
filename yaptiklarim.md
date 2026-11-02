@@ -183,12 +183,15 @@
   - Güvenlik bilgisi (GH_TOKEN, hash doğrulama, kullanıcı onayı)
   - QA & Security: ✅ TEMİZ (portability notu: dosya yolları hardcoded - güvenlik riski değil)
 
-* **04:40** | Final .EXE Üretimi (V2.0.1) | CEO Doğrulama | %100
-  - `npm run dist` çalıştırıldı
-  - `Vibe-Voice Setup 2.0.1.exe` üretildi
-  - `latest.yml` oluşturuldu (auto-updater için gerekli)
-  - GitHub'a push edildi (commit: V2.0.1 - Auto-Updater + UpdateStatus UI + GUNCELLEME_REHBERI)
-  - **FAZ 12 TAMAMLANDI ✅**
+* **05:45** | Final .EXE Üretimi (V2.0.1) | CEO Doğrulama | %100
+  - Build output klasörü `dist-exe` → `dist-exe-v2` olarak değiştirildi (EBUSY kilidi nedeniyle)
+  - `npm run dist` başarılı (63 modules, 1.12s build + electron-builder)
+  - `Vibe-Voice Setup 2.0.1.exe` üretildi (122 MB, 02.11.2026 05:45)
+  - `latest.yml` oluşturuldu (version: 2.0.1, sha512 hash ile)
+  - Binary dosyalar git tracking'den kaldırıldı (git rm --cached)
+  - GitHub'a push edildi (3 commit: 92eddd7, 74aa5f4, 8f3a2b1)
+  - Son commit: `8f3a2b1 chore: change build output to dist-exe-v2 + update gitignore`
+  - **FAZ 12 TAMAMLANDI ✅✅✅**
 
 ### Faz 10: Masaüstü Uygulaması (.EXE) ve Cloud Dağıtım
 * **00:08** | Görev 22: Backend Cloud Uyumluluğu | Backend Agent + Security ✅ TEMİZ | %100

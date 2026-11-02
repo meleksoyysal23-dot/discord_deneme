@@ -40,7 +40,7 @@
     "appId": "com.vibevoice.app",
     "productName": "Vibe-Voice",
     "directories": {
-      "output": "dist-exe"
+      "output": "dist-exe-v2"
     },
     "files": [
       "dist/**/*",
