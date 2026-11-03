@@ -337,22 +337,24 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!loginIdentifier || typeof loginIdentifier !== 'string') {
       return res.status(400).json({
         success: false,
-        error: 'Username or email is required',
+        error: 'Username is required',
       });
     }
 
-    if (!password || typeof password !== 'string') {
+    const trimmedIdentifier = loginIdentifier.trim();
+    
+    // Username validation (3-20 karakter, alphanumeric + underscore)
+    const usernameValidation = validateUsername(trimmedIdentifier);
+    if (!usernameValidation.valid) {
       return res.status(400).json({
         success: false,
-        error: 'Password is required',
+        error: usernameValidation.error,
       });
     }
 
-    // Find user - email veya username ile arama yap
     let user = null;
-    const trimmedIdentifier = loginIdentifier.trim();
 
-    // @ işareti varsa email olarak ara
+    // Email formatı ise email ile ara (backward compatibility)
     if (trimmedIdentifier.includes('@')) {
       user = await prisma.user.findUnique({
         where: { email: trimmedIdentifier },
@@ -379,32 +381,32 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
+    // Kullanıcı yoksa YENİ OLUŞTUR (şifresiz)
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials',
+      const discriminator = generateDiscriminator();
+      user = await prisma.user.create({
+        data: {
+          username: trimmedIdentifier,
+          discriminator,
+          email: `${trimmedIdentifier}@voicecan.local`, // dummy email (benzersiz olmalı)
+          passwordHash: '', // ŞİFRE YOK
+          displayName: trimmedIdentifier,
+          avatar: '🎮', // default avatar
+          status: 'ONLINE',
+        },
       });
-    }
-
-    // Verify password
-    const passwordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordValid) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials',
+      logger.info(`New guest user created: ${user.username}#${user.discriminator} (${user.id})`);
+    } else {
+      // Mevcut kullanıcı - lastSeen güncelle
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastSeen: new Date() },
       });
+      logger.info(`User logged in (passwordless): ${user.username}#${user.discriminator} (${user.id})`);
     }
-
-    // Update lastSeen
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastSeen: new Date() },
-    });
 
     // Generate JWT token
     const token = generateToken(user.id);
-
-    logger.info(`User logged in: ${user.username}#${user.discriminator} (${user.id})`);
 
     return res.status(200).json({
       success: true,
