@@ -329,12 +329,15 @@ router.post('/register', registerLimiter, async (req, res) => {
  */
 router.post('/login', loginLimiter, async (req, res) => {
   try {
+    logger.info('[Login] Request received:', { body: req.body });
+
     const { identifier, username, password } = req.body || {};
 
     // identifier veya username'dan birini al (backward compatibility)
     const loginIdentifier = identifier || username;
 
     if (!loginIdentifier || typeof loginIdentifier !== 'string') {
+      logger.warn('[Login] Missing or invalid username');
       return res.status(400).json({
         success: false,
         error: 'Username is required',
@@ -342,16 +345,27 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const trimmedIdentifier = loginIdentifier.trim();
-    
+
     // Username validation (3-20 karakter, alphanumeric + underscore)
     const usernameValidation = validateUsername(trimmedIdentifier);
     if (!usernameValidation.valid) {
+      logger.warn('[Login] Invalid username:', trimmedIdentifier);
       return res.status(400).json({
         success: false,
         error: usernameValidation.error,
       });
     }
 
+    // Prisma client kontrolü
+    if (!prisma || !prisma.user) {
+      logger.error('[Login] Prisma client not initialized');
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection error',
+      });
+    }
+
+    logger.info('[Login] Looking up user:', trimmedIdentifier);
     let user = null;
 
     // Email formatı ise email ile ara (backward compatibility)
@@ -383,6 +397,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Kullanıcı yoksa YENİ OLUŞTUR (şifresiz)
     if (!user) {
+      logger.info('[Login] User not found, creating new user:', trimmedIdentifier);
       let attempts = 0;
       const maxCreateAttempts = 5;
       let created = false;
@@ -390,6 +405,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       while (attempts < maxCreateAttempts && !created) {
         try {
           const discriminator = await generateDiscriminator();
+          logger.info('[Login] Generated discriminator:', discriminator);
+
           user = await prisma.user.create({
             data: {
               username: trimmedIdentifier,
@@ -402,23 +419,26 @@ router.post('/login', loginLimiter, async (req, res) => {
             },
           });
           created = true;
-          logger.info(`New guest user created: ${user.username}#${user.discriminator} (${user.id})`);
+          logger.info(`[Login] New guest user created: ${user.username}#${user.discriminator} (${user.id})`);
         } catch (createError) {
+          logger.error('[Login] User creation error:', createError.message, createError.code);
+
           // P2002: Unique constraint violation (race condition - aynı discriminator iki kullanıcı tarafından alındı)
           if (createError.code === 'P2002' && attempts < maxCreateAttempts - 1) {
             attempts++;
-            logger.warn(`Discriminator collision detected, retrying (${attempts}/${maxCreateAttempts})`);
+            logger.warn(`[Login] Discriminator collision detected, retrying (${attempts}/${maxCreateAttempts})`);
             continue;
           }
           // P2002: Username veya email unique violation - kullanıcı zaten var
           if (createError.code === 'P2002') {
+            logger.info('[Login] User already exists, fetching...');
             // Kullanıcıyı tekrar bul
             user = await prisma.user.findUnique({
               where: { username: trimmedIdentifier },
             });
             if (user) {
               created = true;
-              logger.info(`User already exists (race condition resolved): ${user.username}#${user.discriminator}`);
+              logger.info(`[Login] User already exists (race condition resolved): ${user.username}#${user.discriminator}`);
               break;
             }
           }
@@ -427,35 +447,41 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
 
       if (!user) {
+        logger.error('[Login] Failed to create user after maximum attempts');
         throw new Error('Failed to create user after maximum attempts');
       }
     } else {
+      logger.info('[Login] Existing user found, updating lastSeen:', user.username);
       // Mevcut kullanıcı - lastSeen güncelle
       await prisma.user.update({
         where: { id: user.id },
         data: { lastSeen: new Date() },
       });
-      logger.info(`User logged in (passwordless): ${user.username}#${user.discriminator} (${user.id})`);
+      logger.info(`[Login] User logged in (passwordless): ${user.username}#${user.discriminator} (${user.id})`);
     }
 
     // Generate JWT token
     if (!process.env.JWT_SECRET) {
-      logger.error('JWT_SECRET environment variable is not set');
+      logger.error('[Login] JWT_SECRET environment variable is not set');
       return res.status(500).json({
         success: false,
         error: 'Server configuration error: JWT_SECRET missing',
       });
     }
 
+    logger.info('[Login] Generating JWT token for user:', user.id);
     const token = generateToken(user.id);
 
+    logger.info('[Login] Login successful:', user.username);
     return res.status(200).json({
       success: true,
       user: sanitizeUser(user),
       token,
     });
   } catch (error) {
-    logger.error('Login error:', error.message, error.stack);
+    logger.error('[Login] Error:', error.message);
+    logger.error('[Login] Stack:', error.stack);
+    logger.error('[Login] Error details:', { name: error.name, code: error.code, meta: error.meta });
     return res.status(500).json({
       success: false,
       error: `Login failed: ${error.message}`,
