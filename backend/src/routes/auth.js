@@ -439,6 +439,14 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     // Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      logger.error('JWT_SECRET environment variable is not set');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error: JWT_SECRET missing',
+      });
+    }
+
     const token = generateToken(user.id);
 
     return res.status(200).json({
@@ -447,10 +455,10 @@ router.post('/login', loginLimiter, async (req, res) => {
       token,
     });
   } catch (error) {
-    logger.error('Login error:', error.message);
+    logger.error('Login error:', error.message, error.stack);
     return res.status(500).json({
       success: false,
-      error: 'Login failed',
+      error: `Login failed: ${error.message}`,
     });
   }
 });
