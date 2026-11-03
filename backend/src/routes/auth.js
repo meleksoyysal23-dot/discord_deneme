@@ -383,19 +383,52 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Kullanıcı yoksa YENİ OLUŞTUR (şifresiz)
     if (!user) {
-      const discriminator = await generateDiscriminator();
-      user = await prisma.user.create({
-        data: {
-          username: trimmedIdentifier,
-          discriminator,
-          email: `${trimmedIdentifier}@voicecan.local`, // dummy email (benzersiz olmalı)
-          passwordHash: '', // ŞİFRE YOK
-          displayName: trimmedIdentifier,
-          avatar: '🎮', // default avatar
-          status: 'ONLINE',
-        },
-      });
-      logger.info(`New guest user created: ${user.username}#${user.discriminator} (${user.id})`);
+      let attempts = 0;
+      const maxCreateAttempts = 5;
+      let created = false;
+
+      while (attempts < maxCreateAttempts && !created) {
+        try {
+          const discriminator = await generateDiscriminator();
+          user = await prisma.user.create({
+            data: {
+              username: trimmedIdentifier,
+              discriminator,
+              email: `${trimmedIdentifier}@voicecan.local`, // dummy email (benzersiz olmalı)
+              passwordHash: '', // ŞİFRE YOK
+              displayName: trimmedIdentifier,
+              avatar: '🎮', // default avatar
+              status: 'ONLINE',
+            },
+          });
+          created = true;
+          logger.info(`New guest user created: ${user.username}#${user.discriminator} (${user.id})`);
+        } catch (createError) {
+          // P2002: Unique constraint violation (race condition - aynı discriminator iki kullanıcı tarafından alındı)
+          if (createError.code === 'P2002' && attempts < maxCreateAttempts - 1) {
+            attempts++;
+            logger.warn(`Discriminator collision detected, retrying (${attempts}/${maxCreateAttempts})`);
+            continue;
+          }
+          // P2002: Username veya email unique violation - kullanıcı zaten var
+          if (createError.code === 'P2002') {
+            // Kullanıcıyı tekrar bul
+            user = await prisma.user.findUnique({
+              where: { username: trimmedIdentifier },
+            });
+            if (user) {
+              created = true;
+              logger.info(`User already exists (race condition resolved): ${user.username}#${user.discriminator}`);
+              break;
+            }
+          }
+          throw createError;
+        }
+      }
+
+      if (!user) {
+        throw new Error('Failed to create user after maximum attempts');
+      }
     } else {
       // Mevcut kullanıcı - lastSeen güncelle
       await prisma.user.update({
