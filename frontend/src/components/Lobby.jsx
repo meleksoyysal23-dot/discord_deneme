@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { DiscordLayout } from './DiscordLayout';
 import { getUsername, setUsername, getGender, setGender, getAvatar, setAvatar } from '../utils/username';
-import UpdateStatus from './UpdateStatus';
 
 // Avatar listesi (20 emoji avatar)
 const AVATARS = [
@@ -142,11 +141,6 @@ export function Lobby({ isConnected, connectionError, onCreateRoom, onJoinRoom, 
               </div>
             </div>
 
-            {/* Update Status */}
-            <div className="mb-6">
-              <UpdateStatus />
-            </div>
-
             {/* Kullanıcı Adı */}
             <div className="mb-6">
               <label className="block text-sm text-gray-400 mb-2">
@@ -258,7 +252,7 @@ export function Lobby({ isConnected, connectionError, onCreateRoom, onJoinRoom, 
                 />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold text-white mb-2">Vibe-Voice</h1>
+            <h1 className="text-4xl font-bold text-white mb-2">VoiceCan</h1>
             <p className="text-gray-400">Sesli sohbet, artık daha kolay</p>
           </div>
 
@@ -287,11 +281,6 @@ export function Lobby({ isConnected, connectionError, onCreateRoom, onJoinRoom, 
               <span className="text-sm text-gray-400">Bağlantı Durumu</span>
               <ConnectionStatus isConnected={isConnected} connectionError={connectionError} />
             </div>
-          </div>
-
-          {/* Update Status */}
-          <div className="mb-6">
-            <UpdateStatus />
           </div>
 
           {/* Create Room Button */}

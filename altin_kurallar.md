@@ -1,8 +1,9 @@
 # 🏛️ SİSTEM ANAYASASI VE OTONOM CEO ORKESTRASYON PROTOKOLÜ (ALTIN KURALLAR)
 
-**Proje:** Vibe-Voice  
+**Proje:** VoiceCan (eski ad: Vibe-Voice Ultimate) — Discord/Kick Hibriti  
 **Oluşturulma:** 02.11.2026 00:03  
-**Son Güncelleme:** 02.11.2026 00:03
+**Son Güncelleme:** 02.11.2026 15:30 (FAZ 13 TAMAMLANDI - VOICECAN REBRANDING)  
+**Geliştirici:** Mehmetcan Bayatlı
 
 ---
 

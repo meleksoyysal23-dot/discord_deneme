@@ -12,6 +12,14 @@ import {
   CHAT_MESSAGE_MAX_LENGTH,
   CHAT_RATE_LIMIT,
   CHAT_RATE_WINDOW,
+  SIGNAL_OFFER_RATE_LIMIT,
+  SIGNAL_OFFER_RATE_WINDOW,
+  SIGNAL_ANSWER_RATE_LIMIT,
+  SIGNAL_ANSWER_RATE_WINDOW,
+  SIGNAL_ICE_RATE_LIMIT,
+  SIGNAL_ICE_RATE_WINDOW,
+  SIGNAL_JOIN_RATE_LIMIT,
+  SIGNAL_JOIN_RATE_WINDOW,
 } from '../constants.js';
 import {
   joinRoom,
@@ -24,6 +32,11 @@ import {
   AVATAR_ID_MIN,
   AVATAR_ID_MAX,
 } from '../constants.js';
+import { checkRateLimit } from '../utils/rateLimiter.js';
+import {
+  validateSDP,
+  validateIceCandidate,
+} from '../utils/validation.js';
 
 /**
  * Room ID validation
@@ -270,6 +283,12 @@ export function registerSocketHandlers(socket, io) {
     try {
       const cb = typeof callback === 'function' ? callback : () => {};
 
+      // Rate limiting kontrolü (join-room için)
+      if (!checkRateLimit(socket.id, 'join-room', SIGNAL_JOIN_RATE_LIMIT, SIGNAL_JOIN_RATE_WINDOW)) {
+        logger.warn(`join-room rate limit exceeded for ${socket.id}`);
+        return cb({ success: false, error: 'Rate limit exceeded for join-room, please slow down' });
+      }
+
       const { roomId: roomRaw, userId: userRaw, gender, avatar } = payload || {};
 
       const roomCheck = validateRoomId(roomRaw);
@@ -373,6 +392,12 @@ export function registerSocketHandlers(socket, io) {
   // --------------------------------------------------------
   socket.on('signal-offer', (payload) => {
     try {
+      // Rate limiting kontrolü
+      if (!checkRateLimit(socket.id, 'signal-offer', SIGNAL_OFFER_RATE_LIMIT, SIGNAL_OFFER_RATE_WINDOW)) {
+        socket.emit('error', { message: 'Rate limit exceeded for signal-offer, please slow down' });
+        return;
+      }
+
       const { targetUserId, offer } = payload || {};
 
       if (!socket.data.userId || !socket.data.roomId) {
@@ -385,11 +410,15 @@ export function registerSocketHandlers(socket, io) {
         logger.warn(
           `signal-offer rejected for ${socket.id}: ${targetCheck.error}`
         );
+        socket.emit('error', { message: targetCheck.error });
         return;
       }
 
-      if (!offer || typeof offer !== 'object') {
-        logger.warn(`signal-offer rejected for ${socket.id}: invalid offer`);
+      // SDP validation
+      const sdpCheck = validateSDP(offer);
+      if (!sdpCheck.valid) {
+        logger.warn(`signal-offer rejected for ${socket.id}: ${sdpCheck.error}`);
+        socket.emit('error', { message: sdpCheck.error });
         return;
       }
 
@@ -407,8 +436,8 @@ export function registerSocketHandlers(socket, io) {
         offer,
       });
 
-      logger.debug(
-        `signal-offer relayed: ${socket.data.userId} -> ${targetCheck.value}`
+      logger.info(
+        `[WebRTC] signal-offer relayed: ${socket.data.userId} -> ${targetCheck.value} (SDP type: ${offer.type}, ${offer.sdp.length} bytes)`
       );
     } catch (err) {
       logger.error(`signal-offer handler error for ${socket.id}:`, err.message);
@@ -420,6 +449,12 @@ export function registerSocketHandlers(socket, io) {
   // --------------------------------------------------------
   socket.on('signal-answer', (payload) => {
     try {
+      // Rate limiting kontrolü
+      if (!checkRateLimit(socket.id, 'signal-answer', SIGNAL_ANSWER_RATE_LIMIT, SIGNAL_ANSWER_RATE_WINDOW)) {
+        socket.emit('error', { message: 'Rate limit exceeded for signal-answer, please slow down' });
+        return;
+      }
+
       const { targetUserId, answer } = payload || {};
 
       if (!socket.data.userId || !socket.data.roomId) {
@@ -432,11 +467,15 @@ export function registerSocketHandlers(socket, io) {
         logger.warn(
           `signal-answer rejected for ${socket.id}: ${targetCheck.error}`
         );
+        socket.emit('error', { message: targetCheck.error });
         return;
       }
 
-      if (!answer || typeof answer !== 'object') {
-        logger.warn(`signal-answer rejected for ${socket.id}: invalid answer`);
+      // SDP validation
+      const sdpCheck = validateSDP(answer);
+      if (!sdpCheck.valid) {
+        logger.warn(`signal-answer rejected for ${socket.id}: ${sdpCheck.error}`);
+        socket.emit('error', { message: sdpCheck.error });
         return;
       }
 
@@ -466,6 +505,12 @@ export function registerSocketHandlers(socket, io) {
   // --------------------------------------------------------
   socket.on('signal-ice-candidate', (payload) => {
     try {
+      // Rate limiting kontrolü (ICE candidates daha yüksek limit)
+      if (!checkRateLimit(socket.id, 'signal-ice-candidate', SIGNAL_ICE_RATE_LIMIT, SIGNAL_ICE_RATE_WINDOW)) {
+        socket.emit('error', { message: 'Rate limit exceeded for signal-ice-candidate, please slow down' });
+        return;
+      }
+
       const { targetUserId, candidate } = payload || {};
 
       if (!socket.data.userId || !socket.data.roomId) {
@@ -478,13 +523,15 @@ export function registerSocketHandlers(socket, io) {
         logger.warn(
           `signal-ice-candidate rejected for ${socket.id}: ${targetCheck.error}`
         );
+        socket.emit('error', { message: targetCheck.error });
         return;
       }
 
-      if (!candidate || typeof candidate !== 'object') {
-        logger.warn(
-          `signal-ice-candidate rejected for ${socket.id}: invalid candidate`
-        );
+      // ICE candidate validation
+      const iceCheck = validateIceCandidate(candidate);
+      if (!iceCheck.valid) {
+        logger.warn(`signal-ice-candidate rejected for ${socket.id}: ${iceCheck.error}`);
+        socket.emit('error', { message: iceCheck.error });
         return;
       }
 

@@ -78,4 +78,15 @@ logger.info('Configuration loaded:', {
   nodeEnv: config.nodeEnv,
 });
 
+// FAZ 2 Security: Production'da JWT_SECRET validation
+if (process.env.NODE_ENV === 'production') {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || 
+      jwtSecret.includes('change-this') ||
+      jwtSecret.length < 32) {
+    console.error('❌ FATAL: JWT_SECRET must be set to a secure random string (min 32 chars) in production!');
+    process.exit(1);
+  }
+}
+
 export default config;

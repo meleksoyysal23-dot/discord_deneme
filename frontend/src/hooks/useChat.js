@@ -11,13 +11,26 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * @param {string|null} roomId - Oda ID'si
  * @param {string|null} userId - Yerel kullanıcı ID'si
  * @param {string} username - Yerel kullanıcı adı
+ * @param {boolean} [isOpen] - Panel açık mı? Verilirse controlled çalışır;
+ *   okunmamış sayacı bu değere göre artar (App tek layout render ettiği için).
  * @returns {object} Chat state ve fonksiyonları
  */
-export function useChat(socket, roomId, userId, username) {
+export function useChat(socket, roomId, userId, username, isOpen) {
   const [messages, setMessages] = useState([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
+
+  // Controlled açık durumu (opsiyonel, geriye uyumlu)
+  const controlledOpen = typeof isOpen === 'boolean';
+  const openState = controlledOpen ? isOpen : isChatOpen;
+  const openStateRef = useRef(openState);
+
+  useEffect(() => {
+    openStateRef.current = openState;
+    // Panel açıldığında okunmamış sayacı sıfırla
+    if (openState) setUnreadCount(0);
+  }, [openState]);
 
   // Socket event listener - gelen mesajları dinle
   useEffect(() => {
@@ -36,13 +49,10 @@ export function useChat(socket, roomId, userId, username) {
         },
       ]);
 
-      // Chat kapalıysa ve mesaj本地 değilse, okunmamış sayacı artır
-      setIsChatOpen((currentOpen) => {
-        if (!currentOpen && from !== userId) {
-          setUnreadCount((prev) => prev + 1);
-        }
-        return currentOpen;
-      });
+      // Chat kapalıysa ve mesaj yerel değilse, okunmamış sayacı artır
+      if (!openStateRef.current && from !== userId) {
+        setUnreadCount((prev) => prev + 1);
+      }
     };
 
     socket.on('chat-message', handleChatMessage);
@@ -97,10 +107,10 @@ export function useChat(socket, roomId, userId, username) {
 
   // Auto-scroll - yeni mesaj geldiğinde en alta kaydır
   useEffect(() => {
-    if (messagesEndRef.current && isChatOpen) {
+    if (messagesEndRef.current && openState) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isChatOpen]);
+  }, [messages, openState]);
 
   // Chat'i aç/kapat
   const toggleChat = useCallback(() => {

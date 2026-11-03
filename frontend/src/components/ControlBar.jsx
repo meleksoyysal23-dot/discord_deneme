@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 /**
  * ControlBar Component
- * Mikrofon, kulaklık ve diğer kontrol butonları
+ * Mikrofon, kulaklık, kamera, ekran paylaşımı ve diğer kontrol butonları
  * @param {object} props
  * @param {boolean} props.isMuted - Mikrofon susturulmuş mu?
  * @param {boolean} props.isDeafened - Kulaklık susturulmuş mu?
@@ -10,11 +10,13 @@ import React, { useState } from 'react';
  * @param {function} props.onToggleDeafen - Deafen toggle fonksiyonu
  * @param {function} props.onLeave - Odadan ayrılma fonksiyonu
  * @param {function} props.onShareLink - Link paylaşma fonksiyonu
- * @param {function} props.onToggleChat - Chat panelini aç/kapat
- * @param {boolean} props.isChatOpen - Chat paneli açık mı?
- * @param {number} props.unreadCount - Okunmamış mesaj sayısı
  * @param {number} props.masterVolume - Ana ses seviyesi (0-1)
  * @param {function} props.onMasterVolumeChange - Ana ses seviyesi değişim fonksiyonu
+ * @param {boolean} props.isScreenSharing - Ekran paylaşımı aktif mi?
+ * @param {boolean} props.isCameraEnabled - Kamera aktif mi?
+ * @param {function} props.onOpenScreenShare - Ekran paylaşım modalını aç
+ * @param {function} props.onStopScreenShare - Ekran paylaşımını durdur
+ * @param {function} props.onToggleCamera - Kamerayı aç/kapat
  */
 export const ControlBar = React.memo(function ControlBar({
   isMuted,
@@ -23,11 +25,13 @@ export const ControlBar = React.memo(function ControlBar({
   onToggleDeafen,
   onLeave,
   onShareLink,
-  onToggleChat,
-  isChatOpen,
-  unreadCount = 0,
   masterVolume = 1,
   onMasterVolumeChange,
+  isScreenSharing = false,
+  isCameraEnabled = false,
+  onOpenScreenShare,
+  onStopScreenShare,
+  onToggleCamera,
 }) {
   const [showVolumeControl, setShowVolumeControl] = useState(false);
 
@@ -95,31 +99,6 @@ export const ControlBar = React.memo(function ControlBar({
         )}
       </button>
 
-      {/* Chat Button */}
-      <button
-        onClick={onToggleChat}
-        className={`relative w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
-          isChatOpen
-            ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/50'
-            : 'bg-slate-700 hover:bg-slate-600'
-        }`}
-        aria-label={isChatOpen ? 'Sohbeti kapat' : 'Sohbeti aç'}
-        title={isChatOpen ? 'Sohbeti kapat' : 'Sohbeti aç'}
-      >
-        <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            fillRule="evenodd"
-            d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-            clipRule="evenodd"
-          />
-        </svg>
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
-
       {/* Volume Control Button */}
       <div className="relative">
         <button
@@ -165,6 +144,55 @@ export const ControlBar = React.memo(function ControlBar({
           </div>
         )}
       </div>
+
+      {/* Camera Button */}
+      {onToggleCamera && (
+        <button
+          onClick={onToggleCamera}
+          className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
+            isCameraEnabled
+              ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/50'
+              : 'bg-slate-700 hover:bg-slate-600'
+          }`}
+          aria-label={isCameraEnabled ? 'Kamerayı kapat' : 'Kamerayı aç'}
+          title={isCameraEnabled ? 'Kamerayı kapat' : 'Kamerayı aç'}
+        >
+          {isCameraEnabled ? (
+            <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm12.553 1.106A1 1 0 0014 8v4a1 1 0 001.553.832l3-2a1 1 0 000-1.664l-3-2z" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M13.644 16.644a.75.75 0 01-1.06 0L2.22 6.28a.75.75 0 011.06-1.06l10.364 10.364a.75.75 0 010 1.06zM14 8v4a1 1 0 001.553.832l3-2a1 1 0 000-1.664l-3-2A1 1 0 0014 8zM2 6a2 2 0 012-2h6a2 2 0 012 2v.364l-2 2V6H4v8h6v-.364l2 2V16a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* Screen Share Button */}
+      {onOpenScreenShare && onStopScreenShare && (
+        <button
+          onClick={isScreenSharing ? onStopScreenShare : onOpenScreenShare}
+          className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
+            isScreenSharing
+              ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/50'
+              : 'bg-slate-700 hover:bg-slate-600'
+          }`}
+          aria-label={isScreenSharing ? 'Ekran paylaşımını durdur' : 'Ekran paylaş'}
+          title={isScreenSharing ? 'Ekran paylaşımını durdur' : 'Ekran paylaş'}
+        >
+          {isScreenSharing ? (
+            <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm2 0v8h12V6H4z" />
+              <path d="M10 9a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1z" />
+            </svg>
+          )}
+        </button>
+      )}
 
       {/* Share Link Button */}
       <button

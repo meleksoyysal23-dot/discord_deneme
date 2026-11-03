@@ -1,0 +1,471 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(uuid())
+  username      String     @unique
+  email         String?    @unique // Opsiyonel email alanı
+  discriminator String     @unique // #1234 formatı
+  passwordHash  String
+  displayName   String?
+  avatar        String?    // URL veya emoji
+  banner        String?
+  about         String?    // Bio/about text
+  status        String     @default("ONLINE") // ONLINE, IDLE, DND, INVISIBLE
+  customStatus  String?    // Emoji + yazı
+  superAdmin    Boolean    @default(false) // Kurucu God Mode yetkisi
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  lastSeen      DateTime   @default(now())
+
+  // İlişkiler
+  ownedServers           Server[]              @relation("ServerOwner")
+  memberships            ServerMember[]
+  sentMessages           Message[]
+  sentFriendRequests     FriendRequest[]       @relation("RequestSender")
+  receivedFriendRequests FriendRequest[]       @relation("RequestReceiver")
+  friendships            Friendship[]          @relation("UserFriendships")
+  friendOf               Friendship[]          @relation("FriendFriendships")
+  blockedUsers           Block[]               @relation("Blocker")
+  blockedBy              Block[]               @relation("Blocked")
+  conversationMembers    ConversationMember[]
+  emojis                 Emoji[]
+  sounds                 Sound[]
+  
+  // FAZ 6 - Moderasyon
+  bans                   Ban[]                 @relation("UserBans")
+  timeouts               Timeout[]
+  auditLogs              AuditLog[]            @relation("AuditModerator")
+  bannedBy               Ban[]                 @relation("BannedBy")
+  
+  // FAZ 7 - Ekosistem
+  notifications          Notification[]
+  settings               UserSettings?
+
+  @@map("users")
+}
+
+model Server {
+  id          String   @id @default(uuid())
+  name        String
+  icon        String?
+  description String?  // Server description
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // FAZ 7 - Keşfet (Discovery)
+  category    String?  // Discovery category id
+  tags        String?  // JSON array string
+  isPublic    Boolean  @default(false) // Discover'da görünür
+
+  // İlişkiler
+  owner     User           @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   ServerMember[]
+  channels  Channel[]
+  roles     Role[]
+  invites   Invite[]
+  emojis    Emoji[]
+  webhooks  Webhook[]
+  
+  // FAZ 6 - Moderasyon
+  bans      Ban[]
+  timeouts  Timeout[]
+  auditLogs AuditLog[]
+  automod   AutoMod?
+
+  @@map("servers")
+}
+
+model ServerMember {
+  id       String   @id @default(uuid())
+  serverId String
+  userId   String
+  joinedAt DateTime @default(now())
+  nickname String?
+
+  // İlişkiler
+  server Server     @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles  UserRole[]
+
+  @@unique([serverId, userId])
+  @@map("server_members")
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  serverId  String
+  name      String
+  type      String   @default("TEXT") // TEXT, VOICE, ANNOUNCEMENT, STAGE, FORUM, MEDIA
+  topic     String?  // Channel topic/description
+  nsfw      Boolean  @default(false)
+  slowmode  Int      @default(0) // saniye
+  position  Int      @default(0)
+  parentId  String?  // Kategori
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  server   Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages Message[]
+  webhooks Webhook[]
+
+  @@map("channels")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  channelId      String?
+  conversationId String?
+  userId         String
+  content        String
+  replyToId      String?
+  editedAt       DateTime?
+  pinned         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // FAZ 7 - Webhook support
+  webhookId      String?
+  webhookName    String?   // Override username for webhook messages
+  webhookAvatar  String?   // Override avatar for webhook messages
+
+  // İlişkiler
+  channel      Channel?      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo      Message?      @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies      Message[]     @relation("MessageReplies")
+  attachments  Attachment[]
+  reactions    Reaction[]
+  repliesOld   MessageReply[] @relation("ParentMessage")
+  parentReply  MessageReply[] @relation("ReplyMessage")
+
+  @@index([channelId, createdAt])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  messageId String
+  url       String
+  filename  String
+  size      Int
+  mimetype  String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("reactions")
+}
+
+model MessageReply {
+  id              String   @id @default(uuid())
+  messageId       String   // Reply message
+  parentMessageId String   // Original message
+  createdAt       DateTime @default(now())
+
+  message Message @relation("ReplyMessage", fields: [messageId], references: [id], onDelete: Cascade)
+  parent  Message @relation("ParentMessage", fields: [parentMessageId], references: [id], onDelete: Cascade)
+
+  @@map("message_replies")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  serverId    String
+  name        String
+  color       String   @default("#99AAB5")
+  permissions String   @default("0") // Bitfield as string for SQLite compatibility
+  position    Int      @default(0)
+  hoist       Boolean  @default(false) // Ayrı göster
+  mentionable Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // İlişkiler
+  server  Server     @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  members UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id       String @id @default(uuid())
+  memberId String
+  roleId   String
+
+  member ServerMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role   Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, roleId])
+  @@map("user_roles")
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
+  status    String   @default("PENDING") // PENDING, ACCEPTED, BLOCKED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User @relation("UserFriendships", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("FriendFriendships", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fromUser User @relation("RequestSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("RequestReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@map("friend_requests")
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+
+model Invite {
+  id        String    @id @default(uuid())
+  serverId  String
+  code      String    @unique
+  creatorId String
+  maxAge    Int?      // saniye (null = süresiz)
+  maxUses   Int?      // null = sınırsız
+  uses      Int       @default(0)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@map("invites")
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  type      String   // "DM" veya "GROUP_DM"
+  name      String?  // Group DM için isim
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  members   ConversationMember[]
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Emoji {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  animated  Boolean  @default(false)
+  serverId  String?
+  userId    String
+  createdAt DateTime @default(now())
+  
+  server    Server? @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([serverId])
+  @@index([userId])
+  @@index([name, serverId])
+  @@map("emojis")
+}
+
+model Sound {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  userId    String
+  createdAt DateTime @default(now())
+  
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("sounds")
+}
+
+// FAZ 6 - Moderasyon Modelleri
+
+model Ban {
+  id         String   @id @default(uuid())
+  serverId   String
+  userId     String
+  reason     String?
+  bannedById String
+  createdAt  DateTime @default(now())
+  
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user     User   @relation("UserBans", fields: [userId], references: [id], onDelete: Cascade)
+  bannedBy User   @relation("BannedBy", fields: [bannedById], references: [id])
+  
+  @@unique([serverId, userId])
+  @@index([serverId])
+  @@map("bans")
+}
+
+model Timeout {
+  id        String   @id @default(uuid())
+  serverId  String
+  userId    String
+  expiresAt DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([serverId, userId])
+  @@index([serverId])
+  @@map("timeouts")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  serverId    String
+  action      String   // BAN, KICK, TIMEOUT, ROLE_CREATE, ROLE_DELETE, MESSAGE_DELETE, etc.
+  targetId    String?  // Hedef user/role/message ID
+  targetType  String?  // USER, ROLE, MESSAGE
+  moderatorId String
+  reason      String?
+  metadata    String?  // JSON string (extra data)
+  createdAt   DateTime @default(now())
+  
+  server    Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  moderator User   @relation("AuditModerator", fields: [moderatorId], references: [id])
+  
+  @@index([serverId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+model AutoMod {
+  id        String   @id @default(uuid())
+  serverId  String
+  enabled   Boolean  @default(false)
+  rules     String   // JSON string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  
+  @@unique([serverId])
+  @@map("automod")
+}
+
+// FAZ 7 - Ekosistem Modelleri
+
+model Webhook {
+  id        String   @id @default(uuid())
+  name      String
+  token     String   @unique
+  channelId String
+  serverId  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  server    Server  @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  
+  @@index([serverId])
+  @@index([channelId])
+  @@map("webhooks")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // MENTION, FRIEND_REQUEST, SERVER_INVITE
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  metadata  String?  // JSON string
+  createdAt DateTime @default(now())
+  
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([read])
+  @@map("notifications")
+}
+
+model UserSettings {
+  id              String  @id @default(uuid())
+  userId          String  @unique
+  theme           String  @default("DARK")
+  language        String  @default("tr")
+  fontSize        String  @default("MEDIUM")
+  notifications   String  @default("{\"desktop\":true,\"sound\":true,\"mentions\":true}")
+  privacy         String  @default("{\"showOnlineStatus\":true,\"allowFriendRequests\":true,\"allowDMsFromStrangers\":false}")
+  audio           String  @default("{\"inputVolume\":100,\"outputVolume\":100,\"noiseSuppression\":true,\"echoCancellation\":true}")
+  developerMode   Boolean @default(false)
+  clientId        String? @unique
+  
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_settings")
+}
+
+model ServerCategory {
+  id          String @id @default(uuid())
+  name        String @unique
+  icon        String
+  serverCount Int    @default(0)
+  
+  @@map("server_categories")
+}

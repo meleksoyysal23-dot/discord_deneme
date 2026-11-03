@@ -1,7 +1,7 @@
 /**
  * Username Utility
- * Kullanıcı adı, gender ve avatar yönetimi - sessionStorage'da saklanır
- * Her sekme farklı kullanıcı bilgileri alabilir
+ * Kullanıcı adı, gender ve avatar yönetimi - localStorage'da kalıcı saklanır
+ * (userId hâlâ sessionStorage'da: her sekme farklı kullanıcı olabilir)
  */
 
 const STORAGE_KEY = 'vibe-voice-username';
@@ -13,7 +13,7 @@ const STORAGE_KEY_AVATAR = 'vibe-voice-avatar';
  * @returns {string} Kullanıcı adı (boş olabilir)
  */
 export function getUsername() {
-  return sessionStorage.getItem(STORAGE_KEY) || '';
+  return localStorage.getItem(STORAGE_KEY) || '';
 }
 
 /**
@@ -24,7 +24,7 @@ export function getUsername() {
 export function setUsername(name) {
   const trimmed = (name || '').trim().substring(0, 20);
   if (trimmed) {
-    sessionStorage.setItem(STORAGE_KEY, trimmed);
+    localStorage.setItem(STORAGE_KEY, trimmed);
   }
   return trimmed;
 }
@@ -59,7 +59,7 @@ export function getInitial(username, userId) {
  * @returns {string|null} 'male' | 'female' | null
  */
 export function getGender() {
-  return sessionStorage.getItem(STORAGE_KEY_GENDER) || null;
+  return localStorage.getItem(STORAGE_KEY_GENDER) || null;
 }
 
 /**
@@ -68,9 +68,9 @@ export function getGender() {
  */
 export function setGender(gender) {
   if (gender === 'male' || gender === 'female') {
-    sessionStorage.setItem(STORAGE_KEY_GENDER, gender);
+    localStorage.setItem(STORAGE_KEY_GENDER, gender);
   } else {
-    sessionStorage.removeItem(STORAGE_KEY_GENDER);
+    localStorage.removeItem(STORAGE_KEY_GENDER);
   }
 }
 
@@ -79,7 +79,7 @@ export function setGender(gender) {
  * @returns {number|null} 1-20 arası avatar ID veya null
  */
 export function getAvatar() {
-  const avatar = sessionStorage.getItem(STORAGE_KEY_AVATAR);
+  const avatar = localStorage.getItem(STORAGE_KEY_AVATAR);
   return avatar ? parseInt(avatar, 10) : null;
 }
 
@@ -89,8 +89,40 @@ export function getAvatar() {
  */
 export function setAvatar(avatarId) {
   if (avatarId && avatarId >= 1 && avatarId <= 20) {
-    sessionStorage.setItem(STORAGE_KEY_AVATAR, avatarId.toString());
+    localStorage.setItem(STORAGE_KEY_AVATAR, avatarId.toString());
   } else {
-    sessionStorage.removeItem(STORAGE_KEY_AVATAR);
+    localStorage.removeItem(STORAGE_KEY_AVATAR);
   }
+}
+
+/**
+ * Avatar ID'sinden emoji döndür
+ * @param {number|null} avatarId
+ * @returns {string|null}
+ */
+const AVATAR_EMOJIS = {
+  1: '🦊',
+  2: '🐺',
+  3: '🦁',
+  4: '🐯',
+  5: '🐻',
+  6: '🐼',
+  7: '🐨',
+  8: '🐸',
+  9: '🦄',
+  10: '🐲',
+  11: '🦋',
+  12: '🌸',
+  13: '⭐',
+  14: '🌙',
+  15: '🔥',
+  16: '💎',
+  17: '🎮',
+  18: '🎵',
+  19: '🚀',
+  20: '💀',
+};
+
+export function getAvatarEmoji(avatarId) {
+  return AVATAR_EMOJIS[avatarId] || null;
 }

@@ -1,0 +1,35 @@
+{
+  "appId": "com.mehmetcanbayatli.voicecan",
+  "productName": "VoiceCan",
+  "copyright": "Copyright © 2026 Mehmetcan Bayatlı",
+  "directories": {
+    "output": "C:\\temp\\voicecan-build-v10\\dist"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "node_modules/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build/logo.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "artifactName": "VoiceCan-Setup-${version}.${ext}",
+  "publish": {
+    "provider": "github",
+    "owner": "meleksoyysal23-dot",
+    "repo": "discord_deneme",
+    "releaseType": "release"
+  }
+}

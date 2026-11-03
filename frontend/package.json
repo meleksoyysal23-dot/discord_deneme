@@ -2,13 +2,14 @@
   "name": "voicecan",
   "productName": "VoiceCan",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "VoiceCan - Sesli Sohbet ve Topluluk Platformu",
   "main": "electron/main.cjs",
   "author": "Mehmetcan Bayatlı",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:bypass": "vite --mode bypass",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
@@ -46,7 +47,7 @@
     "productName": "VoiceCan",
     "copyright": "Copyright © 2026 Mehmetcan Bayatlı",
     "directories": {
-      "output": "dist-exe-v10"
+      "output": "dist-exe-v11"
     },
     "files": [
       "dist/**/*",

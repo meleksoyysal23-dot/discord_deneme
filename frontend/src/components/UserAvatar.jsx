@@ -33,8 +33,9 @@ const AVATARS = [
  * @param {number} props.volume - Ses seviyesi (0-1)
  * @param {boolean} props.isLocalUser - Yerel kullanıcı mı?
  * @param {string} props.username - Kullanıcı adı (opsiyonel)
+ * @param {boolean} props.isSpeaking - Aktif olarak konuşuyor mu?
  */
-export const UserAvatar = React.memo(function UserAvatar({ user, volume = 0, isLocalUser = false, username }) {
+export const UserAvatar = React.memo(function UserAvatar({ user, volume = 0, isLocalUser = false, username, isSpeaking = false }) {
   const { userId, isMuted, gender, avatar } = user;
 
   // Görüntülenecek isim
@@ -75,12 +76,21 @@ export const UserAvatar = React.memo(function UserAvatar({ user, volume = 0, isL
     <div className="flex flex-col items-center gap-2">
       {/* Avatar container */}
       <div className="relative">
-        {/* Avatar circle */}
+        {/* Speaking ring (yeşil halka - aktif konuşan kişi) */}
         <div
-          className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl md:text-3xl font-bold transition-all duration-150"
-          style={{ boxShadow }}
+          className={`w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all duration-150 ${
+            isSpeaking
+              ? 'ring-4 ring-green-500 ring-offset-2 ring-offset-gray-900 animate-pulse'
+              : ''
+          }`}
         >
-          {avatarEmoji || initial}
+          {/* Avatar circle */}
+          <div
+            className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl md:text-3xl font-bold transition-all duration-150"
+            style={{ boxShadow }}
+          >
+            {avatarEmoji || initial}
+          </div>
         </div>
 
         {/* Gender badge */}

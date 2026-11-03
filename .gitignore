@@ -6,14 +6,21 @@ dist/
 release/
 frontend/dist-electron/
 frontend/dist-exe/
-frontend/dist-exe-v2/
+frontend/dist-exe-v*/
 frontend/dist/
 frontend/release/
+*.exe
+*.msi
+*.AppImage
+*.dmg
 
 # Environment variables
 .env
 .env.local
 .env.production
+.env.release
+*.env.release
+.env.*.local
 
 # IDE files
 .vscode/
