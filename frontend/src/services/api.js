@@ -142,14 +142,47 @@ export async function register(credentials) {
  * @returns {Promise<{ success: boolean, user: object, token: string }>}
  */
 export async function login(credentials) {
-  const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
-  });
-  const data = await res.json();
+  let res;
+  try {
+    res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+  } catch (fetchError) {
+    // Ağ hatası, CORS hatası, sunucuya ulaşılamıyor vb.
+    throw new Error(`Ağ hatası: ${fetchError.message || 'Sunucuya bağlanılamadı'}`);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (parseError) {
+    // Response JSON değil
+    throw new Error(`Sunucu yanıtı geçersiz (HTTP ${res.status}): ${await res.text().catch(() => 'Okunamadı')}`);
+  }
+
   if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Login failed');
+    // Detaylı hata mesajı oluştur
+    const errorMessage = data.error || data.message || 'Login failed';
+    const statusCode = res.status;
+
+    // HTTP status'e göre daha açıklayıcı mesaj
+    let detailedMessage = errorMessage;
+    if (statusCode === 500) {
+      detailedMessage = `Sunucu hatası (500): ${errorMessage}`;
+    } else if (statusCode === 503) {
+      detailedMessage = `Sunucu şu anda kullanılamıyor (503): ${errorMessage}`;
+    } else if (statusCode === 400) {
+      detailedMessage = `Geçersiz istek (400): ${errorMessage}`;
+    } else if (statusCode === 401 || statusCode === 403) {
+      detailedMessage = `Yetkilendirme hatası (${statusCode}): ${errorMessage}`;
+    }
+
+    const error = new Error(detailedMessage);
+    error.status = statusCode;
+    error.responseData = data;
+    throw error;
   }
   return data;
 }
