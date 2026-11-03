@@ -40,6 +40,23 @@ export function LoginScreen({ onLoginSuccess }) {
           <p className="text-[#949ba4] text-sm">İsmini yaz ve sohbete katıl</p>
         </div>
 
+        <div className="mb-6 flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.electronAPI && window.electronAPI.openExternal) {
+                window.electronAPI.openExternal('https://github.com/meleksoyysal23-dot/discord_deneme/releases');
+              } else {
+                window.open('https://github.com/meleksoyysal23-dot/discord_deneme/releases', '_blank');
+              }
+            }}
+            className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-xs font-bold rounded-md transition-all flex items-center gap-1.5 shadow-lg"
+          >
+            <span>🚀</span>
+            <span>Sürümü Güncelle</span>
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-[#b5bac1] uppercase mb-2">

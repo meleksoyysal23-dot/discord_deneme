@@ -383,7 +383,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Kullanıcı yoksa YENİ OLUŞTUR (şifresiz)
     if (!user) {
-      const discriminator = generateDiscriminator();
+      const discriminator = await generateDiscriminator();
       user = await prisma.user.create({
         data: {
           username: trimmedIdentifier,
