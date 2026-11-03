@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { login } from '../../services/api';
 
 const AVATAR_EMOJIS = ['🎮', '🎯', '🎨', '🎵', '🎬', '📚', '🚀', '⭐', '🔥', '💎', '🌟', '🎪', '🎭', '🎲', '🎸', '🎺', '🎻', '🥁', '🎤', '🎧'];
@@ -8,6 +8,38 @@ export function LoginScreen({ onLoginSuccess }) {
   const [selectedAvatar, setSelectedAvatar] = useState('🎮');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState('idle');
+  const [updateProgress, setUpdateProgress] = useState(0);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onUpdateStatus) return;
+    const unsub1 = window.electronAPI.onUpdateStatus((status) => setUpdateStatus(status));
+    const unsub2 = window.electronAPI.onUpdateProgress((p) => {
+      if (p && typeof p.percent === 'number') setUpdateProgress(Math.round(p.percent));
+    });
+    return () => { unsub1(); unsub2(); };
+  }, []);
+
+  const handleUpdateClick = async () => {
+    if (!window.electronAPI?.checkForUpdates) {
+      window.open('https://github.com/meleksoyysal23-dot/discord_deneme/releases', '_blank');
+      return;
+    }
+    if (updateStatus === 'downloaded') {
+      await window.electronAPI.quitAndInstall();
+      return;
+    }
+    if (updateStatus === 'idle' || updateStatus === 'not-available' || updateStatus === 'error') {
+      try {
+        const result = await window.electronAPI.checkForUpdates();
+        if (result?.status === 'available') {
+          await window.electronAPI.downloadUpdate();
+        }
+      } catch (err) {
+        setUpdateStatus('error');
+      }
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,17 +75,22 @@ export function LoginScreen({ onLoginSuccess }) {
         <div className="mb-6 flex justify-end">
           <button
             type="button"
-            onClick={() => {
-              if (window.electronAPI && window.electronAPI.openExternal) {
-                window.electronAPI.openExternal('https://github.com/meleksoyysal23-dot/discord_deneme/releases');
-              } else {
-                window.open('https://github.com/meleksoyysal23-dot/discord_deneme/releases', '_blank');
-              }
-            }}
-            className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-xs font-bold rounded-md transition-all flex items-center gap-1.5 shadow-lg"
+            onClick={handleUpdateClick}
+            disabled={updateStatus === 'checking' || updateStatus === 'downloading'}
+            className={`px-3 py-1.5 text-white text-xs font-bold rounded-md transition-all flex items-center gap-1.5 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed ${
+              updateStatus === 'downloaded' ? 'bg-gradient-to-r from-green-500 to-emerald-500 animate-pulse hover:from-green-600 hover:to-emerald-600' :
+              updateStatus === 'not-available' ? 'bg-gradient-to-r from-gray-500 to-gray-600 cursor-default' :
+              updateStatus === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' :
+              'bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600'
+            }`}
           >
-            <span>🚀</span>
-            <span>Sürümü Güncelle</span>
+            {updateStatus === 'checking' && <><span className="animate-spin">⏳</span><span>Araniyor...</span></>}
+            {updateStatus === 'not-available' && <><span>✓</span><span>Guncel</span></>}
+            {updateStatus === 'available' && <><span>🚀</span><span>Yeni surum hazirlaniyor...</span></>}
+            {updateStatus === 'downloading' && <><span className="animate-pulse">⬇️</span><span>Indiriliyor %{updateProgress}</span></>}
+            {updateStatus === 'downloaded' && <><span>✅</span><span>Kur ve Yeniden Baslat</span></>}
+            {updateStatus === 'error' && <><span>⚠️</span><span>Tekrar Dene</span></>}
+            {updateStatus === 'idle' && <><span>🚀</span><span>Surumu Guncelle</span></>}
           </button>
         </div>
 
