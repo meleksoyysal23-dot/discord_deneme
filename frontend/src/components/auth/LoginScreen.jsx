@@ -42,8 +42,8 @@ export function LoginScreen({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#313338] flex justify-center p-4 overflow-y-auto py-8">
-      <div className="w-full max-w-md bg-[#1e1f22] rounded-lg shadow-2xl p-8 my-auto">
+    <div className="min-h-screen bg-[#313338] flex items-start justify-center p-4 overflow-y-auto py-8">
+      <div className="w-full max-w-md bg-[#1e1f22] rounded-lg shadow-2xl p-8 my-8 mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">VoiceCan</h1>
           <p className="text-[#949ba4] text-sm">
@@ -67,6 +67,22 @@ export function LoginScreen({ onLoginSuccess }) {
                 <span>Yeni Kurucu (Süper Admin) ve otomatik giriş desteği.</span>
               </li>
             </ul>
+            <div className="mt-4 pt-3 border-t border-indigo-500/30">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.electronAPI && window.electronAPI.openExternal) {
+                    window.electronAPI.openExternal('https://github.com/meleksoyysal23-dot/discord_deneme/releases');
+                  } else {
+                    window.open('https://github.com/meleksoyysal23-dot/discord_deneme/releases', '_blank');
+                  }
+                }}
+                className="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2"
+              >
+                <span>🚀</span>
+                <span>Sürümü Güncelle / Yeni Sürümü İndir</span>
+              </button>
+            </div>
           </div>
         )}
 

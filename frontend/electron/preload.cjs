@@ -37,4 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('deep-link', listener);
     return () => ipcRenderer.removeListener('deep-link', listener);
   },
+
+  // Harici URL'yi varsayılan tarayıcıda aç (Güncelle butonu vb. için)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

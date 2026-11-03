@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, desktopCapturer } = require('electron');
+const { app, BrowserWindow, session, ipcMain, desktopCapturer, shell } = require('electron');
 const path = require('path');
 const { Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
@@ -214,6 +214,20 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('get-app-version', () => app.getVersion());
+
+  // Harici URL'yi varsayılan tarayıcıda aç (Güncelle butonu vb. için)
+  // Güvenlik: sadece http/https protokollerine izin ver
+  ipcMain.handle('open-external', async (event, url) => {
+    try {
+      if (typeof url !== 'string') return { ok: false, error: 'Invalid URL' };
+      if (!/^https?:\/\//i.test(url)) return { ok: false, error: 'Protocol not allowed' };
+      await shell.openExternal(url);
+      return { ok: true };
+    } catch (error) {
+      console.error('[open-external] Error:', error);
+      return { ok: false, error: String(error.message || error) };
+    }
+  });
 
   // FAZ 19.3: desktopCapturer IPC köprüsü (ekran paylaşımı için)
   // Güvenlik: sadece 'window' ve 'screen' types — web/chrome sekmeleri YASAK
