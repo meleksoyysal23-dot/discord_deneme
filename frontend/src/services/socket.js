@@ -35,8 +35,8 @@ export function connectSocket(token = null) {
   });
 
   socket.on('disconnect', (reason) => {
-    socket = null;
     console.log('[Socket] Disconnected:', reason);
+    socket = null;
   });
 
   socket.on('connect_error', (error) => {

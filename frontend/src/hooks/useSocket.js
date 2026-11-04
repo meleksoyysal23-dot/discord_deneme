@@ -34,6 +34,12 @@ export function useSocket(user = null) {
       console.log('[useSocket] Disconnected:', reason);
     });
 
+    // Socket null guard — disconnect sonrası s.id erişimi önlenir
+    s.on('connect_error', (error) => {
+      console.error('[useSocket] Connection error:', error?.message || error);
+      setError(error?.message || 'Connection error');
+    });
+
     s.on('connect_error', (error) => {
       console.error('[useSocket] Connection error:', error.message);
       setError(error.message);
