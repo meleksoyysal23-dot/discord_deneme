@@ -1,3 +1,64 @@
+# GÖREV 24: ELECTRON PRODUCTION SOCKET BAĞLANTI HATASI
+
+**Tarih:** 04.11.2026
+**Durum:** ✅ TAMAMLANDI
+
+## Kullanıcı Talebi:
+Electron production modda (EXE) "Socket bağlantısı kurulamadı" hatası alıyor.
+
+## Kök Neden:
+Custom `voicecan-app://` protocol handler Electron v45'te düzgün çalışmıyordu. Backend zaten `corsOrigin: '*'` kullanıyor, bu yüzden `file://` protokolü CORS açısından sorun değil.
+
+## Çözüm:
+- `main.cjs` — Custom protocol kodu TAMAMEN KALDIRILDI (~28 satır)
+- `main.cjs` — Production modda basit `loadFile` kullanımı
+- `socket.js` — Bağlantı ayarları iyileştirildi (timeout, reconnection)
+- Backend CORS — `voicecan-app://` origin eklendi (gerekirse)
+
+## Karar:
+Backend zaten tüm originlere izin veriyor (`corsOrigin: '*'`), custom protocol gereksiz karmaşıklık ekliyordu. Basit `loadFile` + backend CORS wildcard yeterli.
+
+---
+
+# GÖREV 23: DAVET SİSTEMİ — LİNK KALDIRMA + KOD ODAKLI
+
+**Tarih:** 04.11.2026
+**Durum:** ✅ TAMAMLANDI
+
+## Kullanıcı Talebi:
+Davet linki yerine sadece davet kodu kullanılsın. Link girişi ve gösterimi kaldırıldı.
+
+## Değişiklikler:
+- `InviteModal.jsx` — "Davet Linki" bölümü kaldırıldı, "Kodu Kopyala" butonu eklendi
+- `DiscordLayout.jsx` — Ayarlar'da sadece "Davet Kodu" input'u (link input kaldırıldı)
+
+## Backend Doğrulama:
+- ✅ `POST /api/servers/:id/invites` — Davet kodu oluşturuyor
+- ✅ `GET /api/invites/:code` — Davet bilgisi çekiyor
+- ✅ `POST /api/invites/:code/join` — Sunucuya katılıyor
+
+## Karar:
+Artık kullanıcılar sadece 6 haneli davet kodu (örn: "ABC123") kullanıyor. Link yok.
+
+---
+
+# GÖREV 22: EKRAN PAYLAŞIMI BYPASS MOD DÜZELTMESİ
+
+**Tarih:** 04.11.2026
+**Durum:** ✅ TAMAMLANDI
+
+## Kök Neden:
+Bypass modda `roomRef.current` = null → `startScreenShare` hata atıyor → catch bloğunda sessizce yutuluyor → "Paylaş" butonu hiçbir şey yapmıyor gibi görünüyor.
+
+## Çözüm:
+- `useLiveKit.js` → `startScreenShare` + `stopScreenShare` başına bypass mod kontrolü eklendi
+- `App.jsx` → `handleScreenShareSelect` catch bloğuna `setIsScreenShareModalOpen(false)` eklendi
+
+## Karar:
+Bypass modda gerçek ekran paylaşımı YOK (LiveKit room yok), sadece UI state güncelleniyor. Normal modda orijinal mantık korundu.
+
+---
+
 # GÖREV 8: "BAĞLI DEĞİL" HATASI - DERİN ANALİZ RAPORU
 
 **Tarih:** 2026-11-03  

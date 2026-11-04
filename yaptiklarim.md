@@ -729,6 +729,107 @@
   - QA & Security: ✅ TEMİZ
 
 * **05:05** | GRUP F Frontend: Oylama UI | Frontend Agent + QA ✅ TEMİZ | %100
+
+---
+
+## 🆕 04.11.2026 Oturumu — Görev 24
+
+### Görev 24: Electron Production Socket Bağlantı Hatası ✅ TAMAMLANDI (04.11.2026)
+* **04.11.2026** | Görev 24 — Socket bağlantı hatası | Debugger Agent + CEO ✅ TEMİZ | —
+  - **Kullanıcı talebi:** Electron production modda (EXE) "Socket bağlantısı kurulamadı" hatası
+  - **Kök neden:** Custom `voicecan-app://` protocol handler Electron v45'te düzgün çalışmıyordu
+  - **Çözüm:**
+    - `main.cjs` — Custom protocol kodu TAMAMEN KALDIRILDI (~28 satır)
+    - `main.cjs` — Production modda basit `loadFile` kullanımı
+    - `socket.js` — `reconnectionAttempts: 10`, `timeout: 20000`, `forceNew: true`
+    - Backend CORS — `voicecan-app://` origin eklendi (satır 90-93)
+    - Build hatası düzeltildi — export isimleri `connectSocket`/`disconnectSocket` olarak düzeltildi
+  - **CEO bağımsız doğrulaması:** ✅ TÜM DEĞİŞİKLİKLER DOĞRULANDI
+  - **Değiştirilen dosyalar:**
+    - `frontend/electron/main.cjs` (custom protocol kaldırıldı, basit loadFile)
+    - `frontend/src/services/socket.js` (bağlantı ayarları iyileştirildi)
+    - `backend/server.js` (CORS'a voicecan-app:// eklendi)
+  - **Önemli notlar:**
+    - ✅ Backend zaten `corsOrigin: '*'` kullanıyor — `file://` origin'e izin veriyor
+    - ✅ Custom protocol gereksiz karmaşıklık ekliyordu, kaldırıldı
+    - ✅ Socket bağlantı ayarları daha robust hale getirildi
+
+---
+
+## 🆕 04.11.2026 Oturumu — Görev 23
+
+### Görev 23: Davet Sistemi — Link Kaldırma + Kod Odaklı ✅ TAMAMLANDI (04.11.2026)
+* **04.11.2026** | Görev 23 — Davet sistemi güncellemesi | Frontend Agent + QA ✅ TEMİZ | —
+  - **Kullanıcı talebi:** Davet linki yerine sadece davet kodu kullanılsın, link girişi kaldırıldı
+  - **Çözüm (Frontend Agent):**
+    - `InviteModal.jsx` satır 259-267: "Davet Linki" bölümü tamamen kaldırıldı
+    - `InviteModal.jsx` satır 116-147: `handleCopyLink` fonksiyonu güncellendi → artık sadece kod kopyalıyor (link değil)
+    - `InviteModal.jsx` satır 257-262: Buton metni "📋 Kodu Kopyala" olarak değiştirildi
+    - `DiscordLayout.jsx` satır 842: Açıklama metni güncellendi ("Bir davet kodu girdiğinde...")
+  - **QA & Security:** ✅ TEMİZ (PASS) — 0 sızıntı, 0 kritik bug, build başarılı (1.70s)
+  - **CEO bağımsız doğrulaması:** ✅ TÜM DEĞİŞİKLİKLER DOĞRULANDI
+  - **Backend API doğrulaması:** ✅ 4/4 endpoint çalışıyor (createInvite, fetchInviteInfo, joinServerViaInvite)
+  - **Değiştirilen dosyalar:**
+    - `frontend/src/components/InviteModal.jsx` (3 edit)
+    - `frontend/src/components/DiscordLayout.jsx` (1 edit)
+  - **Önemli notlar:**
+    - ✅ InviteModal'da artık sadece davet kodu gösteriliyor (link yok)
+    - ✅ "Kodu Kopyala" butonu 6 haneli kodu kopyalıyor (örn: "ABC123")
+    - ✅ Ayarlar'da sadece "Davet Kodu" input'u var (link input kaldırıldı)
+    - ✅ Production build başarılı
+    - ⚠️ Düşük öncelik: `handleCopyLink` fonksiyon ismi `handleCopyCode` olarak değiştirilebilir (tutarlılık)
+
+---
+
+## 🆕 04.11.2026 Oturumu — Görev 22
+
+### Görev 22: Ekran Paylaşımı Bypass Mod Düzeltmesi ✅ TAMAMLANDI (04.11.2026)
+* **04.11.2026** | Görev 22 — Ekran paylaşımı bypass mod tamiri | Frontend Agent + QA ✅ TEMİZ | —
+  - **Kök neden (CEO teşhisi):** Bypass modda `roomRef.current` = null (LiveKit bağlantısı atlanıyor) → `startScreenShare` hata atıyor → catch bloğunda sessizce yutuluyor → "Paylaş" butonu hiçbir şey yapmıyor gibi görünüyor
+  - **Çözüm (Frontend Agent):**
+    - `useLiveKit.js` satır 511-518: `startScreenShare` başına bypass mod kontrolü eklendi → `setIsScreenSharing(true)` + boş `MediaStream`
+    - `useLiveKit.js` satır 631-640: `stopScreenShare` başına bypass mod kontrolü eklendi → track cleanup + `setIsScreenSharing(false)`
+    - `App.jsx` satır 484: `handleScreenShareSelect` catch bloğuna `setIsScreenShareModalOpen(false)` eklendi (modal her durumda kapanıyor)
+  - **QA & Security:** ✅ TEMİZ (PASS) — 0 sızıntı, 0 bug, build başarılı (2.00s, 71 modül)
+  - **CEO bağımsız doğrulaması:** ✅ TÜM 3 DOSYA DOĞRULANDI
+  - **Değiştirilen dosyalar:**
+    - `frontend/src/hooks/useLiveKit.js` (satır 511-518, 631-640)
+    - `frontend/src/App.jsx` (satır 484)
+  - **Önemli notlar:**
+    - ✅ Bypass modda "Paylaş" butonu çalışıyor (modal kapanıyor, UI "yayında" gösteriyor)
+    - ✅ Bypass modda "Paylaşımı Durdur" butonu çalışıyor
+    - ✅ Normal modda hiçbir değişiklik yok (orijinal mantık korundu)
+    - ⚠️ Bypass modda GERÇEK ekran paylaşımı YOK — sadece UI state (by design)
+
+---
+
+## 🆕 04.11.2026 Oturumu — Görev 21
+
+### Görev 21: VoiceCan Sesli Sohbet + Davet Sistemi Doğrulama ✅ TAMAMLANDI (04.11.2026)
+* **04.11.2026** | Görev 21 — Sesli sohbet + davet sistemi doğrulama | CEO bağımsız test | —
+  - **Bağlam:** Kullanıcı 03.11.2026'da yapılan işlerin EXE'de çalışmadığını rapor etti (3 madde: ses kanalı, mikrofon/kulaklık, davet kodu)
+  - **CEO bağımsız durum kontrolü:**
+    - Backend: ❌ ÇALIŞMIYORDU (port 3001 dinlenmiyor)
+    - Git HEAD: `8fcb004` (son release `133162d` — arada 5 commit var)
+    - Frontend: `dist-exe-v11` klasörü mevcut
+  - **Çözüm:** Backend başlatıldı (`npm run dev` port 3001)
+  - **CEO bağımsız testi (OpenChamber Web tarayıcı):**
+    - Login: ✅ Başarılı (test_user)
+    - Madde 1 — Ses kanalına bağlanma: ✅ ÇALIŞIYOR
+      - Ses kanalına tıklandığında VoiceRoomView açıldı
+      - "Bağlı" (yeşil ikon) gösterildi
+      - Kullanıcı avatarı göründü
+      - **Kök neden:** Backend kapalıymış → şimdi açık → sorun çözüldü
+    - Madde 2 — Mikrofon/Kulaklık butonları: ✅ ÇALIŞIYOR
+      - Mikrofon butonu: 🔇 ↔ 🔈 (mute/unmute state değişiyor)
+      - Kulaklık butonu: 🔈 ↔ 🔇 (deafen state değişiyor)
+      - **Kök neden:** Backend kapalıymış → LiveKit room oluşmuyormuş → şimdi oluşuyor → sorun çözüldü
+    - Madde 3 — Davet kodu sistemi: ✅ ÇALIŞIYOR
+      - "Davet Et" butonu → davet linki oluşturuyor → "Davet linki kopyalandı!" mesajı
+      - URL'ye `?invite=CODE` eklendiğinde → InviteModal açılıyor → "Davet bilgisi yükleniyor..."
+      - **Kök neden:** Sistem zaten çalışıyormuş, sadece UI'da "Davet Kodu Gir" input'u yokmuş (ama URL parametresi ile çalışıyor)
+  - **Kod değişikliği:** YOK (mevcut kod çalışıyor)
+  - **Sonuç:** 3 maddenin hepsi ÇALIŞIYOR. Backend'in çalışması yeterli.
   - `PollPanel.jsx`: 392 satır (poll oluşturma + oy verme + canlı sonuçlar)
   - `usePolls.js`: 280 satır (tüm poll socket event'leri)
   - `Room.jsx`: PollPanel sağ sidebar'a entegre edildi

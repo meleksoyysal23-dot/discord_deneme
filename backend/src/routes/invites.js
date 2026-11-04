@@ -145,7 +145,7 @@ router.post('/servers/:id/invites', async (req, res) => {
     const maxAttempts = 5;
     
     do {
-      code = generateInviteCode();
+      code = generateInviteCode().toLowerCase();
       const existing = await prisma.invite.findUnique({ where: { code } });
       if (!existing) break;
       attempts++;
@@ -403,10 +403,12 @@ router.delete('/invites/:code', async (req, res) => {
 router.post('/invites/:code/join', async (req, res) => {
   try {
     const { code } = req.params;
+    const normalizedCode = code.toLowerCase();
+    console.log('[Join] Attempting to join with code:', normalizedCode, 'user:', req.user.id);
 
     // Daveti bul
     const invite = await prisma.invite.findUnique({
-      where: { code },
+      where: { code: normalizedCode },
       include: {
         server: {
           include: {

@@ -87,8 +87,8 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // file:// veya app:// protokolleri (Electron)
-    if (origin.startsWith('file://') || origin.startsWith('app://')) {
+    // file://, app:// veya voicecan-app:// protokolleri (Electron)
+    if (origin.startsWith('file://') || origin.startsWith('app://') || origin.startsWith('voicecan-app://')) {
       return callback(null, true);
     }
     
@@ -107,7 +107,7 @@ const corsOptions = {
     // İzin verilmeyen origin
     callback(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   credentials: true,
 };
 

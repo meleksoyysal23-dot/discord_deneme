@@ -1,56 +1,73 @@
-/**
- * useSocket Hook
- * Socket.io bağlantısını yöneten React hook
- */
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { connectSocket, disconnectSocket } from '../services/socket';
 
 /**
- * Socket bağlantısı kur ve durumu takip et
- * @returns {{ socket: import('socket.io-client').Socket|null, isConnected: boolean, connectionError: string|null }}
+ * Socket.IO bağlantısını yöneten React hook
  */
-export function useSocket() {
+export function useSocket(user = null) {
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionError, setConnectionError] = useState(null);
-  const socketRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const socket = connectSocket();
-    socketRef.current = socket;
+    if (!user) return;
 
-    const handleConnect = () => {
+    // Token'ı localStorage'dan oku (user objesinde token field'ı yok!)
+    const token = localStorage.getItem('voicecan-token');
+    if (!token) {
+      console.error('[useSocket] No token found in localStorage');
+      return;
+    }
+
+    // Socket bağlantısı oluştur
+    const s = connectSocket(token);
+    setSocket(s);
+
+    // Connection events
+    s.on('connect', () => {
       setIsConnected(true);
-      setConnectionError(null);
-    };
+      console.log('[useSocket] Connected:', s.id);
+    });
 
-    const handleDisconnect = (reason) => {
+    s.on('disconnect', (reason) => {
       setIsConnected(false);
-      if (reason === 'io server disconnect') {
-        // Server tarafından kapatıldı, reconnect dene
-        socket.connect();
-      }
-    };
+      console.log('[useSocket] Disconnected:', reason);
+    });
 
-    const handleError = (error) => {
-      setConnectionError(error.message);
-    };
-
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('connect_error', handleError);
+    s.on('connect_error', (error) => {
+      console.error('[useSocket] Connection error:', error.message);
+      setError(error.message);
+    });
 
     return () => {
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('connect_error', handleError);
       disconnectSocket();
     };
-  }, []);
+  }, [user]);
 
-  return {
-    socket: socketRef.current,
-    isConnected,
-    connectionError,
-  };
+  return { socket, isConnected, error };
+}
+
+/**
+ * Socket bağlantı durumunu kontrol et
+ */
+export function useSocketStatus() {
+  const [status, setStatus] = useState('disconnected');
+  const socket = null; // Bu fonksiyon kullanılmıyor
+
+  useEffect(() => {
+    if (!socket) {
+      setStatus('disconnected');
+      return;
+    }
+
+    const checkStatus = () => {
+      setStatus(socket.connected ? 'connected' : 'connecting');
+    };
+
+    checkStatus();
+    const interval = setInterval(checkStatus, 1000);
+    return () => clearInterval(interval);
+  }, [socket]);
+
+  return { status };
 }

@@ -62,10 +62,45 @@ export function VoiceRoomView({
   onToggleCamera,
   screenShareStream = null, // Ekran paylaşımı video stream'i
   cameraStreams = {}, // Kamera stream'leri { userId: MediaStream }
+  onCreateInvite, // Davet kodu oluştur handler
 }) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isScreenShareFullscreen, setIsScreenShareFullscreen] = useState(false);
   const screenShareVideoRef = useRef(null);
   const cameraVideoRefs = useRef({});
+
+  // Ekran paylaşımı tam ekran toggle
+  const handleScreenShareClick = () => {
+    if (!screenShareVideoRef.current) return;
+
+    if (!document.fullscreenElement) {
+      // Tam ekrana gir
+      screenShareVideoRef.current.requestFullscreen().then(() => {
+        setIsScreenShareFullscreen(true);
+      }).catch(err => {
+        console.error('Fullscreen error:', err);
+      });
+    } else {
+      // Tam ekrandan çık
+      document.exitFullscreen().then(() => {
+        setIsScreenShareFullscreen(false);
+      }).catch(err => {
+        console.error('Exit fullscreen error:', err);
+      });
+    }
+  };
+
+  // Fullscreen değişimlerini dinle (ESC ile çıkış durumunda state güncelle)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsScreenShareFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   // Kullanıcı bilgilerini zenginleştir (volume, mute durumu, speaking durumu)
   // LiveKit participants array'inden konuşma durumunu al
@@ -129,7 +164,21 @@ export function VoiceRoomView({
                 <span className="font-medium text-white">{users.length}</span>/4 kullanıcı
               </div>
             </div>
-            <ConnectionStatus isConnected={isConnected} connectionError={connectionError} />
+            <div className="flex items-center gap-2">
+              {onCreateInvite && (
+                <button
+                  onClick={onCreateInvite}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-md transition-colors flex items-center gap-1.5"
+                  title="Davet kodu oluştur"
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6z" />
+                  </svg>
+                  Davet Et
+                </button>
+              )}
+              <ConnectionStatus isConnected={isConnected} connectionError={connectionError} />
+            </div>
           </div>
         </div>
 
@@ -141,7 +190,11 @@ export function VoiceRoomView({
               /* Ekran Paylaşımı Aktif - Büyük Ekran + Küçük Kameralar */
               <div className="flex-1 flex flex-col min-h-0 gap-4">
                 {/* Büyük Ekran Paylaşımı */}
-                <div className="flex-1 relative bg-black rounded-lg overflow-hidden min-h-0">
+                <div 
+                  className="flex-1 relative bg-black rounded-lg overflow-hidden min-h-0 cursor-pointer group"
+                  onClick={handleScreenShareClick}
+                  title={isScreenShareFullscreen ? "Tam ekrandan çıkmak için tıkla" : "Tam ekran için tıkla"}
+                >
                   <video
                     ref={screenShareVideoRef}
                     autoPlay
@@ -152,6 +205,18 @@ export function VoiceRoomView({
                   <div className="absolute top-4 left-4 bg-green-600 text-white px-3 py-1.5 rounded-md text-sm font-semibold flex items-center gap-2 shadow-lg">
                     <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                     720P 30 FPS YAYINDA
+                  </div>
+                  {/* Tam Ekran İkonu (hover'da görünür) */}
+                  <div className="absolute top-4 right-4 bg-black/70 text-white p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isScreenShareFullscreen ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                      </svg>
+                    )}
                   </div>
                 </div>
 

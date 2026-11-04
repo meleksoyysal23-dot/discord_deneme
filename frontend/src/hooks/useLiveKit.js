@@ -168,17 +168,21 @@ export function useLiveKit(localUserId, roomId, username) {
         roomId
       )}&participant=${encodeURIComponent(username || localUserId)}`;
 
-      console.log('[LiveKit] Requesting token from:', tokenUrl);
+      console.log('[LiveKit] Fetching token from:', tokenUrl);
 
       const res = await fetch(tokenUrl);
+      console.log('[LiveKit] Token response status:', res.status);
 
       if (!res.ok) {
-        throw new Error(`Token alınamadı (HTTP ${res.status})`);
+        const errorText = await res.text();
+        console.error('[LiveKit] Token fetch failed:', res.status, errorText);
+        throw new Error(`Token alınamadı (HTTP ${res.status}): ${errorText}`);
       }
 
       const data = await res.json();
       token = data.token;
       url = data.url;
+      console.log('[LiveKit] Token received:', token ? 'yes' : 'no', 'URL:', url);
 
       if (!token || !url) {
         throw new Error('Token veya URL eksik');
@@ -273,7 +277,10 @@ export function useLiveKit(localUserId, roomId, username) {
       });
 
       // Odaya bağlan
+      console.log('[LiveKit] Connecting to:', url);
+      console.log('[LiveKit] Token:', token ? 'present (' + token.length + ' chars)' : 'missing');
       await room.connect(url, token);
+      console.log('[LiveKit] Connected successfully');
 
       // Mikrofonu başlat (AEC, NS, AGC varsayılan ayarlarla)
       try {
@@ -286,8 +293,12 @@ export function useLiveKit(localUserId, roomId, username) {
 
       updateParticipants(room, localUserId, username);
     } catch (err) {
-      console.error('[LiveKit] Connection error:', err);
-      setError(err.message || 'Bağlantı hatası');
+      const errorMsg = err?.message || err?.toString() || 'Unknown error';
+      const errorName = err?.name || 'Unknown';
+      console.error('[LiveKit] Connection failed:', errorName, '-', errorMsg);
+      console.error('[LiveKit] Error details:', err);
+      console.error('[LiveKit] Error stack:', err?.stack);
+      setError(`Bağlantı hatası: ${errorMsg}`);
       setIsConnected(false);
       roomRef.current = null;
     }
@@ -369,7 +380,10 @@ export function useLiveKit(localUserId, roomId, username) {
       return;
     }
 
-    if (!roomRef.current) return;
+    if (!roomRef.current) {
+      console.warn('[LiveKit] Cannot toggle mute: not in a room');
+      return;
+    }
     try {
       await roomRef.current.localParticipant.setMicrophoneEnabled(!newMuted);
       setIsMuted(newMuted);
@@ -494,6 +508,15 @@ export function useLiveKit(localUserId, roomId, username) {
    * @param {boolean} withSystemAudio - Sistem sesi de paylaşılacak mı?
    */
   const startScreenShare = useCallback(async (sourceId, withSystemAudio = false) => {
+    // BYPASS MODU: Gerçek LiveKit bağlantısı yok, sahte ekran paylaşımı
+    if (import.meta.env.VITE_SKIP_AUTH === 'true') {
+      console.warn('[DEV BYPASS] Ekran paylaşımı bypass modda sahte olarak başlatılıyor');
+      setIsScreenSharing(true);
+      // Sahte stream ref'leri (UI'ın "yayında" göstermesi için)
+      screenShareStreamRef.current = new MediaStream();
+      return;
+    }
+
     if (!roomRef.current) {
       console.error('[LiveKit] Room not connected');
       throw new Error('Odaya bağlı değilsiniz');
@@ -605,6 +628,17 @@ export function useLiveKit(localUserId, roomId, username) {
    * Ekran paylaşımını durdur
    */
   const stopScreenShare = useCallback(async () => {
+    // BYPASS MODU: Sahte ekran paylaşımını durdur
+    if (import.meta.env.VITE_SKIP_AUTH === 'true') {
+      console.warn('[DEV BYPASS] Ekran paylaşımı bypass modda sahte olarak durduruluyor');
+      if (screenShareStreamRef.current) {
+        screenShareStreamRef.current.getTracks().forEach(track => track.stop());
+        screenShareStreamRef.current = null;
+      }
+      setIsScreenSharing(false);
+      return;
+    }
+
     if (!roomRef.current) {
       console.warn('[LiveKit] Room not connected');
       return;

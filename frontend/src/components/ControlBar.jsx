@@ -194,18 +194,6 @@ export const ControlBar = React.memo(function ControlBar({
         </button>
       )}
 
-      {/* Share Link Button */}
-      <button
-        onClick={onShareLink}
-        className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/50"
-        aria-label="Linki paylaş"
-        title="Linki paylaş"
-      >
-        <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-        </svg>
-      </button>
-
       {/* Leave Button */}
       <button
         onClick={onLeave}

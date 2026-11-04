@@ -331,7 +331,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   try {
     logger.info('[Login] Request received:', { body: req.body });
 
-    const { identifier, username, password } = req.body || {};
+    const { identifier, username, password, avatar } = req.body || {};
 
     // identifier veya username'dan birini al (backward compatibility)
     const loginIdentifier = identifier || username;
@@ -414,7 +414,7 @@ router.post('/login', loginLimiter, async (req, res) => {
               email: `${trimmedIdentifier}@voicecan.local`, // dummy email (benzersiz olmalı)
               passwordHash: '', // ŞİFRE YOK
               displayName: trimmedIdentifier,
-              avatar: '🎮', // default avatar
+              avatar: avatar || '🎮', // Login'den gelen avatar veya default
               status: 'ONLINE',
             },
           });

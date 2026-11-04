@@ -47,11 +47,22 @@ export function LoginScreen({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      // Backend artık şifresiz - sadece username gönder
-      const result = await login({ username, password: '' }); // password boş string (backend ignore edecek)
+      // Backend artık şifresiz - username + avatar gönder
+      const result = await login({ username, password: '', avatar: selectedAvatar });
 
       // Token'ı localStorage'a kaydet (session persistence)
       localStorage.setItem('voicecan-token', result.token);
+      
+      // Avatar'ı localStorage'a kaydet (profile için)
+      // LoginScreen avatar'ları emoji olarak tutar, profile.js ID bekler
+      // AVATAR_EMOJIS listesindeki index'i bul
+      const AVATAR_LIST = ['🎮', '🎯', '🎨', '🎵', '🎬', '📚', '🚀', '⭐', '🔥', '💎', '🌟', '🎪', '🎭', '🎲', '🎸', '🎺', '🎻', '🥁', '🎤', '🎧'];
+      const avatarId = AVATAR_LIST.indexOf(selectedAvatar) + 1;
+      if (avatarId >= 1 && avatarId <= 20) {
+        localStorage.setItem('vibe-voice-avatar', String(avatarId));
+      }
+      // Username'i de kaydet
+      localStorage.setItem('vibe-voice-username', username.trim());
       
       // Başarılı giriş
       if (onLoginSuccess) {

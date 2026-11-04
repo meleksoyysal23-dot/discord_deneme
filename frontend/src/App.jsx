@@ -22,7 +22,7 @@ import { VoiceRoomView } from './components/VoiceRoomView';
 import { TextChannelView } from './components/TextChannelView';
 import { WelcomeView } from './components/WelcomeView';
 import { LoginScreen } from './components/auth/LoginScreen';
-import { fetchMe } from './services/api';
+import { fetchMe, createInvite } from './services/api';
 import ScreenShareModal from './components/ScreenShareModal';
 import { InviteModal } from './components/InviteModal';
 
@@ -132,7 +132,7 @@ function App() {
     }
   }, [isDevBypass, profile]);
 
-  const { socket, isConnected, connectionError } = useSocket();
+  const { socket, isConnected, error: connectionError } = useSocket(user);
   const {
     currentRoom,
     users,
@@ -226,6 +226,9 @@ function App() {
   // Invite modal state (must be defined before useEffects that use it)
   const [pendingInvite, setPendingInvite] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteModalMode, setInviteModalMode] = useState('join'); // 'create' | 'join'
+  const [inviteModalServerId, setInviteModalServerId] = useState(null);
+  const [inviteModalServerName, setInviteModalServerName] = useState('');
 
   // ============ Tema init (soğuk başlangıçta CSS değişkenini uygula) ============
   // ThemeSection mount olmadan önce bile --theme-gradient değişkeni mevcut olsun;
@@ -256,6 +259,7 @@ function App() {
       console.log('[Invite] Davet kodu algılandı:', inviteCode);
       setPendingInvite(inviteCode);
       setShowInviteModal(true);
+      setInviteModalMode('join');
       
       // URL'den parametreyi temizle
       window.history.replaceState({}, '', window.location.pathname);
@@ -360,17 +364,17 @@ function App() {
         lkDisconnect();
       }
     } else {
-      // NORMAL MOD: Orijinal mantık
-      if (currentRoom && socket && isConnected) {
+      // NORMAL MOD: Socket koşulunu kaldır, sadece currentRoom'a bak
+      if (currentRoom) {
         lkConnect().catch((err) => {
           console.error('LiveKit bağlantı hatası:', err);
         });
-      } else if (!currentRoom) {
+      } else {
         lkDisconnect();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDevBypass, bypassCurrentRoom, currentRoom, socket, isConnected]);
+  }, [isDevBypass, bypassCurrentRoom, currentRoom]);
 
   // Sync activeChannelId with effectiveCurrentRoom
   useEffect(() => {
@@ -477,6 +481,7 @@ function App() {
       setIsScreenShareModalOpen(false);
     } catch (error) {
       console.error('Screen share failed:', error);
+      setIsScreenShareModalOpen(false); // Modal'ı her durumda kapat
       // TODO: Show error toast to user
     }
   };
@@ -495,6 +500,44 @@ function App() {
     } catch (error) {
       console.error('Toggle camera failed:', error);
     }
+  };
+
+  const handleCreateInvite = () => {
+    console.log('[Invite] handleCreateInvite called');
+    console.log('[Invite] activeServerId:', activeServerId);
+    console.log('[Invite] activeServer:', activeServer);
+    console.log('[Invite] isDevBypass:', isDevBypass);
+    console.log('[Invite] workspace.servers:', workspace.servers);
+    
+    // Bypass modda mock invite kodu göster
+    if (isDevBypass) {
+      setShowInviteModal(true);
+      setInviteModalMode('create');
+      setInviteModalServerId('bypass-server');
+      setInviteModalServerName('Sunucu');
+      return;
+    }
+    
+    if (!activeServerId) {
+      alert('Sunucu bulunamadı');
+      return;
+    }
+    
+    setShowInviteModal(true);
+    setInviteModalMode('create');
+    setInviteModalServerId(activeServerId);
+    setInviteModalServerName(activeServer?.name || 'Sunucu');
+  };
+
+  const handleOpenJoinInvite = () => {
+    // Bypass modda davet ile katılma çalışmaz (backend yok)
+    if (isDevBypass) {
+      alert('⚠️ Dev bypass modunda davet ile katılınamaz');
+      return;
+    }
+    setShowInviteModal(true);
+    setInviteModalMode('join');
+    setPendingInvite(null);
   };
 
   // ============ Auth gate ============
@@ -564,6 +607,10 @@ function App() {
         onToggleCamera={handleToggleCamera}
         screenShareStream={screenShareStream}
         cameraStreams={cameraStreams}
+        onCreateInvite={() => {
+          alert('Davet Et tıklandı!');
+          handleCreateInvite();
+        }}
       />
     );
   } else if (activeChannel?.type === 'TEXT') {
@@ -592,7 +639,7 @@ function App() {
       activeChannel?.type === 'VOICE' || activeChannel?.type === 'STAGE';
     const notice =
       isVoiceSelected && roomError
-        ? 'Ses kanalına katılınamadı. Sunucu bağlantısı kurulamadı.'
+        ? `Ses kanalına katılınamadı: ${roomError}`
         : null;
     mainContent = (
       <WelcomeView channel={activeChannel} notice={notice} />
@@ -627,8 +674,12 @@ function App() {
         user={user}
         onLogout={handleLogout}
         onUserUpdate={setUser}
+        onProfileUpdate={(newProfile) => {
+          setProfile(prev => ({ ...prev, ...newProfile }));
+        }}
         enumerateDevices={enumerateDevices}
         switchAudioDevice={switchAudioDevice}
+        onOpenJoinInvite={handleOpenJoinInvite}
       >
         {mainContent}
       </DiscordLayout>
@@ -643,16 +694,25 @@ function App() {
       {/* Invite Modal */}
       <InviteModal
         isOpen={showInviteModal}
-        inviteCode={pendingInvite}
+        mode={inviteModalMode}
+        inviteCode={inviteModalMode === 'join' ? pendingInvite : undefined}
+        serverId={inviteModalMode === 'create' ? inviteModalServerId : undefined}
+        serverName={inviteModalMode === 'create' ? inviteModalServerName : undefined}
         onClose={() => {
           setShowInviteModal(false);
           setPendingInvite(null);
+          setInviteModalMode('join');
+          setInviteModalServerId(null);
+          setInviteModalServerName('');
         }}
         onJoinSuccess={(server) => {
           console.log('[Invite] Sunucuya katıldı:', server);
           // Workspace'i yenile (sunucu listesini güncelle)
           // Şimdilik basit: sayfa yenileme
           window.location.reload();
+        }}
+        onInviteCreated={(invite) => {
+          console.log('[Invite] Created:', invite);
         }}
       />
     </>

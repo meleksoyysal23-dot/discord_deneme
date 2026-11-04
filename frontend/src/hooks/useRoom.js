@@ -31,8 +31,12 @@ export function useRoom(socket, localUserId) {
    */
   const joinRoom = useCallback(
     (roomId) => {
-      if (!socket || !localUserId || !roomId) {
-        setError('Socket, userId veya roomId eksik');
+      if (!socket || !socket.connected) {
+        setError('Socket bağlantısı kurulamadı. Lütfen sayfayı yenileyin.');
+        return;
+      }
+      if (!localUserId || !roomId) {
+        setError('Kullanıcı ID veya oda ID eksik');
         return;
       }
 

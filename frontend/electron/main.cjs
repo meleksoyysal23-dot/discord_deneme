@@ -30,7 +30,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false, // Ekran paylaşımı için sandbox kapalı (desktopCapturer + getUserMedia uyumluluğu)
     },
     show: false,
   });
@@ -40,7 +40,49 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // Production: Yerel HTTP sunucusu başlat (file:// protocol sorunlarını önler)
+    const http = require('http');
+    const fs = require('fs');
+    const distDir = path.join(__dirname, '..', 'dist');
+    
+    const server = http.createServer((req, res) => {
+      let filePath = path.join(distDir, req.url === '/' ? 'index.html' : req.url);
+      
+      // MIME type belirle
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeTypes = {
+        '.html': 'text/html',
+        '.js': 'application/javascript',
+        '.css': 'text/css',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.svg': 'image/svg+xml',
+        '.ico': 'image/x-icon',
+      };
+      const contentType = mimeTypes[ext] || 'application/octet-stream';
+      
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(404);
+          res.end('Not found');
+        } else {
+          res.writeHead(200, { 'Content-Type': contentType });
+          res.end(data);
+        }
+      });
+    });
+    
+    const PORT = 4173;
+    server.listen(PORT, '127.0.0.1', () => {
+      console.log(`[Main] Production server running on http://localhost:${PORT}`);
+      mainWindow.loadURL(`http://localhost:${PORT}`);
+    });
+    
+    // App kapanınca sunucuyu durdur
+    app.on('before-quit', () => {
+      server.close();
+    });
   }
 
   mainWindow.setTitle('VoiceCan');
@@ -174,10 +216,10 @@ app.whenReady().then(() => {
   // Disable menu bar (app ready olmalı)
   Menu.setApplicationMenu(null);
 
-  // Yalnızca sesli sohbet için mikrofon/kamera iznine izin ver
+  // Sesli sohbet (mikrofon/kamera) + ekran paylaşımı iznine izin ver
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    // Uygulama yalnızca sesli sohbet için mikrofon/kamera ister.
-    if (permission === 'media') {
+    // 'media' = mikrofon/kamera, 'display-capture' = ekran paylaşımı
+    if (permission === 'media' || permission === 'display-capture') {
       callback(true);
       return;
     }
@@ -185,7 +227,7 @@ app.whenReady().then(() => {
   });
 
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    return permission === 'media';
+    return permission === 'media' || permission === 'display-capture';
   });
 
   createWindow();
@@ -225,6 +267,18 @@ app.whenReady().then(() => {
       return { ok: true };
     } catch (error) {
       console.error('[open-external] Error:', error);
+      return { ok: false, error: String(error.message || error) };
+    }
+  });
+
+  // Clipboard'a yaz (Electron native API — sandbox'ta navigator.clipboard çalışmayabilir)
+  ipcMain.handle('copy-to-clipboard', async (event, text) => {
+    try {
+      const { clipboard } = require('electron');
+      clipboard.writeText(String(text));
+      return { ok: true };
+    } catch (error) {
+      console.error('[clipboard] Error:', error);
       return { ok: false, error: String(error.message || error) };
     }
   });

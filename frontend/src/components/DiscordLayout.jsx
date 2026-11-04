@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import UpdateSection from './settings/UpdateSection';
 import { ThemeSection } from './settings/ThemeSection';
 import { ElevateSection } from './settings/ElevateSection';
-import { updateProfile } from '../services/api';
+import { updateProfile, joinServerViaInvite } from '../services/api';
 
 const AVATAR_EMOJIS = ['🎮', '🎯', '🎨', '🎵', '🎬', '📚', '🚀', '⭐', '🔥', '💎', '🌟', '🎪', '🎭', '🎲', '🎸', '🎺', '🎻', '🥁', '🎤', '🎧'];
 
@@ -46,8 +46,10 @@ export function DiscordLayout(props) {
     user,
     onLogout,
     onUserUpdate,
+    onProfileUpdate,
     enumerateDevices,
     switchAudioDevice,
+    onOpenJoinInvite,
   } = props;
 
   const [collapsedCategories, setCollapsedCategories] = useState(new Set());
@@ -71,6 +73,33 @@ export function DiscordLayout(props) {
   const [editAvatar, setEditAvatar] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
+
+  // Join server tab state
+  const [joinCode, setJoinCode] = useState('');
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState('');
+  const [joinSuccess, setJoinSuccess] = useState(false);
+
+  const handleJoinServer = async () => {
+    const code = joinCode.trim().toLowerCase();
+    if (!code) return;
+
+    setJoinLoading(true);
+    setJoinError('');
+    setJoinSuccess(false);
+
+    try {
+      const result = await joinServerViaInvite(code);
+      setJoinLoading(false);
+      setJoinSuccess(true);
+      setJoinCode('');
+      // Sayfayı yenile — yeni sunucu verisi yüklensin
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      setJoinLoading(false);
+      setJoinError(err.message || 'Sunucuya katılamadı');
+    }
+  };
 
   const toggleCategory = (catId) => {
     setCollapsedCategories((prev) => {
@@ -213,6 +242,22 @@ export function DiscordLayout(props) {
       if (result?.user && onUserUpdate) {
         onUserUpdate(result.user);
       }
+      // localStorage'ı da güncelle — böylece profile state'i de değişir
+      if (editDisplayName.trim()) {
+        localStorage.setItem('vibe-voice-username', editDisplayName.trim());
+      }
+      // Avatar emoji → ID dönüşümü (DiscordLayout AVATAR_EMOJIS listesindeki index)
+      const avatarId = AVATAR_EMOJIS.indexOf(editAvatar) + 1;
+      if (avatarId >= 1 && avatarId <= 20) {
+        localStorage.setItem('vibe-voice-avatar', String(avatarId));
+      }
+      // Parent'a bildir — profile state'i güncellensin
+      if (onProfileUpdate) {
+        onProfileUpdate({
+          username: editDisplayName.trim() || username,
+          avatar: avatarId >= 1 && avatarId <= 20 ? avatarId : (profile?.avatar || 1),
+        });
+      }
       // Close modal after success
       setShowSettingsModal(false);
     } catch (err) {
@@ -276,6 +321,20 @@ export function DiscordLayout(props) {
             <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />
           </svg>
         </button>
+
+        {/* Sunucuya Katıl */}
+        {onOpenJoinInvite && (
+          <button
+            onClick={onOpenJoinInvite}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-indigo-400 bg-[#313338] hover:rounded-2xl hover:bg-indigo-600 hover:text-white transition-all mt-2"
+            title="Sunucuya Katıl"
+            aria-label="Sunucuya Katıl"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
       </aside>
 
       {/* ============ Channel Sidebar ============ */}
@@ -640,6 +699,16 @@ export function DiscordLayout(props) {
               >
                 Ses
               </button>
+              <button
+                onClick={() => { setActiveSettingsTab('join'); setJoinError(''); setJoinSuccess(false); }}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  activeSettingsTab === 'join'
+                    ? 'text-white border-b-2 border-[#5865f2]'
+                    : 'text-[#949ba4] hover:text-white'
+                }`}
+              >
+                Sunucuya Katıl
+              </button>
             </div>
 
             {/* Profile Tab */}
@@ -777,6 +846,58 @@ export function DiscordLayout(props) {
                     <span className="text-white text-xs w-10 text-right">{Math.round((localVolume || 0) * 100)}%</span>
                   </div>
                   <p className="text-[#949ba4] text-[10px] mt-1">Konuşarak test et</p>
+                </div>
+              </div>
+            )}
+
+            {/* Join Server Tab */}
+            {activeSettingsTab === 'join' && (
+              <div className="space-y-4">
+                <div className="bg-black/40 backdrop-blur-sm rounded-lg p-4 border border-white/10">
+                  <h4 className="text-white font-semibold mb-2 text-sm">Davet Kodu ile Sunucuya Katıl</h4>
+                  <p className="text-[#949ba4] text-xs mb-3">
+                    Bir davet kodu girdiğinde o sunucuya katılırsın.
+                  </p>
+
+                  <label className="text-[#949ba4] text-xs font-semibold uppercase mb-1 block">
+                    Davet Kodu
+                  </label>
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !joinLoading) handleJoinServer(); }}
+                    placeholder="ABC123"
+                    disabled={joinLoading}
+                    className="w-full bg-[#1e1f22] text-white text-lg font-mono tracking-wider rounded px-3 py-2 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#5865f2] disabled:opacity-50 placeholder:text-[#949ba4]/50"
+                  />
+
+                  {joinError && (
+                    <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mt-3">
+                      <p className="text-red-300 text-sm">❌ {joinError}</p>
+                    </div>
+                  )}
+
+                  {joinSuccess && (
+                    <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-3 mt-3">
+                      <p className="text-green-300 text-sm">✅ Sunucuya katıldın! Sayfa yenileniyor...</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleJoinServer}
+                    disabled={joinLoading || !joinCode.trim()}
+                    className="w-full mt-3 px-4 py-2.5 bg-[#5865f2] hover:bg-[#4752c4] disabled:bg-[#4e5058] disabled:cursor-not-allowed text-white text-sm font-semibold rounded-md transition-colors flex items-center justify-center gap-2"
+                  >
+                    {joinLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Katılıyor...
+                      </>
+                    ) : (
+                      '🚀 Katıl'
+                    )}
+                  </button>
                 </div>
               </div>
             )}

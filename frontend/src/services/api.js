@@ -5,7 +5,9 @@
  * null döndürür (caller fallback kullanır).
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// Backend URL — Environment variable veya fallback
+// Production build'de .env.production okunur, development'te .env.development
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://discord-deneme-klyz.onrender.com';
 
 // Yaygın token anahtarları — auth UI henüz eklenmediği için birkaç
 // olası anahtarı deneriz. Hiçbiri yoksa istek gönderilmez.
@@ -298,4 +300,33 @@ export async function joinServerViaInvite(code) {
     throw new Error(data?.error || 'Sunucuya katılamadı');
   }
   return data;
+}
+
+/**
+ * Sunucu için davet kodu oluştur
+ * @param {string} serverId - Sunucu ID'si
+ * @param {{ maxAge?: number, maxUses?: number }} options - Davet seçenekleri
+ * @returns {Promise<object>} Davet bilgisi (code, expiresAt, vb.)
+ */
+export async function createInvite(serverId, options = {}) {
+  const token = getAuthToken();
+  if (!token) throw new Error('No authentication token');
+
+  const res = await fetch(`${BACKEND_URL}/api/servers/${encodeURIComponent(serverId)}/invites`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      maxAge: options.maxAge || 86400, // 24 saat
+      maxUses: options.maxUses || 100,
+    }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.error || 'Davet oluşturulamadı');
+  }
+  return data.invite;
 }

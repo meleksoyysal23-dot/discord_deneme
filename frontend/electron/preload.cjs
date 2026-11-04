@@ -40,4 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Harici URL'yi varsayılan tarayıcıda aç (Güncelle butonu vb. için)
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
+  // Clipboard'a yaz (Electron native API — sandbox'ta navigator.clipboard çalışmayabilir)
+  copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
 });
