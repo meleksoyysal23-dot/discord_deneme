@@ -108,7 +108,7 @@ const corsOptions = {
     callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  credentials: true,
+  credentials: false, // Wildcard origin ile credentials:true kullanılamaz (CORS spec)
 };
 
 app.use(cors(corsOptions));
