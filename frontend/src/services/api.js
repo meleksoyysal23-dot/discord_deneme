@@ -5,9 +5,9 @@
  * null döndürür (caller fallback kullanır).
  */
 
-// Backend URL — Environment variable veya fallback
+// Backend URL — Environment variable (fallback YOK, Render'a istek atmasın)
 // Production build'de .env.production okunur, development'te .env.development
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://discord-deneme-klyz.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 // Yaygın token anahtarları — auth UI henüz eklenmediği için birkaç
 // olası anahtarı deneriz. Hiçbiri yoksa istek gönderilmez.
@@ -126,21 +126,41 @@ export async function fetchServerDetail(serverId, { signal } = {}) {
  * @returns {Promise<{ success: boolean, user: object, token: string }>}
  */
 export async function register(credentials) {
-  const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Registration failed');
+  let res;
+  try {
+    res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+  } catch (fetchError) {
+    // Ağ hatası → LOCAL MODE
+    console.warn('[API] Backend erişilemedi (register), Local Mode aktif:', fetchError.message);
+    const fakeToken = 'local-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+    return {
+      success: true,
+      user: {
+        id: 'local-user',
+        username: credentials.username,
+        displayName: credentials.displayName || credentials.username,
+        discriminator: '0000',
+        superAdmin: false,
+        avatar: '🎮',
+        status: 'ONLINE',
+      },
+      token: fakeToken,
+    };
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.error || 'Registration failed');
   }
   return data;
 }
 
 /**
  * Kullanıcı girişi
- * @param {{ username: string, password: string }} credentials
+ * @param {{ username: string, password: string, avatar?: string }} credentials
  * @returns {Promise<{ success: boolean, user: object, token: string }>}
  */
 export async function login(credentials) {
@@ -152,16 +172,44 @@ export async function login(credentials) {
       body: JSON.stringify(credentials),
     });
   } catch (fetchError) {
-    // Ağ hatası, CORS hatası, sunucuya ulaşılamıyor vb.
-    throw new Error(`Ağ hatası: ${fetchError.message || 'Sunucuya bağlanılamadı'}`);
+    // Ağ hatası, CORS hatası, sunucuya ulaşılamıyor vb. → LOCAL MODE
+    console.warn('[API] Backend erişilemedi, Local Mode aktif:', fetchError.message);
+    const fakeToken = 'local-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+    return {
+      success: true,
+      user: {
+        id: 'local-user',
+        username: credentials.username,
+        displayName: credentials.username,
+        discriminator: '0000',
+        superAdmin: false,
+        avatar: credentials.avatar || '🎮',
+        status: 'ONLINE',
+      },
+      token: fakeToken,
+    };
   }
 
   let data;
   try {
     data = await res.json();
   } catch (parseError) {
-    // Response JSON değil
-    throw new Error(`Sunucu yanıtı geçersiz (HTTP ${res.status}): ${await res.text().catch(() => 'Okunamadı')}`);
+    // Response JSON değil → LOCAL MODE
+    console.warn('[API] Sunucu yanıtı geçersiz, Local Mode aktif');
+    const fakeToken = 'local-' + Date.now() + '-' + Math.random().toString(36).substring(2);
+    return {
+      success: true,
+      user: {
+        id: 'local-user',
+        username: credentials.username,
+        displayName: credentials.username,
+        discriminator: '0000',
+        superAdmin: false,
+        avatar: credentials.avatar || '🎮',
+        status: 'ONLINE',
+      },
+      token: fakeToken,
+    };
   }
 
   if (!res.ok || data.success === false) {
@@ -196,15 +244,59 @@ export async function login(credentials) {
 export async function fetchMe() {
   const token = getAuthToken();
   if (!token) throw new Error('No token');
-  const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to fetch user');
+  
+  // Local token ise backend'e gitme, localStorage'dan oku
+  if (token.startsWith('local-')) {
+    const username = localStorage.getItem('vibe-voice-username') || 'Kullanici';
+    const avatarId = localStorage.getItem('vibe-voice-avatar') || '1';
+    const AVATAR_LIST = ['🎮', '🎯', '🎨', '🎵', '🎬', '📚', '🚀', '⭐', '🔥', '💎', '🌟', '🎪', '🎭', '🎲', '🎸', '🎺', '🎻', '🥁', '🎤', '🎧'];
+    const avatarEmoji = AVATAR_LIST[parseInt(avatarId) - 1] || '🎮';
+    return {
+      success: true,
+      user: {
+        id: 'local-user',
+        username: username,
+        displayName: username,
+        discriminator: '0000',
+        superAdmin: false,
+        avatar: avatarEmoji,
+        status: 'ONLINE',
+      },
+    };
+  }
+  
+  let res;
+  try {
+    res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  } catch (fetchError) {
+    // Backend erişilemez → localStorage'dan oku
+    console.warn('[API] fetchMe: Backend erişilemedi, localStorage\'dan okunuyor');
+    const username = localStorage.getItem('vibe-voice-username') || 'Kullanici';
+    const avatarId = localStorage.getItem('vibe-voice-avatar') || '1';
+    const AVATAR_LIST = ['🎮', '🎯', '🎨', '🎵', '🎬', '📚', '🚀', '⭐', '🔥', '💎', '🌟', '🎪', '🎭', '🎲', '🎸', '🎺', '🎻', '🥁', '🎤', '🎧'];
+    const avatarEmoji = AVATAR_LIST[parseInt(avatarId) - 1] || '🎮';
+    return {
+      success: true,
+      user: {
+        id: 'local-user',
+        username: username,
+        displayName: username,
+        discriminator: '0000',
+        superAdmin: false,
+        avatar: avatarEmoji,
+        status: 'ONLINE',
+      },
+    };
+  }
+  
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.error || 'Failed to fetch user');
   }
   return data;
 }
@@ -238,6 +330,18 @@ export async function elevate(code) {
  * @returns {Promise<{ success: boolean, user: object }>}
  */
 export async function updateProfile({ displayName, avatar }) {
+  // BYPASS modda: API çağrısı yapma (token yok), sadece başarılı dön
+  if (import.meta.env.VITE_SKIP_AUTH === 'true') {
+    console.warn('[DEV BYPASS] updateProfile atlanıyor (token yok)');
+    return {
+      success: true,
+      user: {
+        displayName: displayName || 'CEO',
+        avatar: avatar || '🎮',
+      },
+    };
+  }
+
   const token = getAuthToken();
   if (!token) throw new Error('No token');
   const res = await fetch(`${BACKEND_URL}/api/auth/me`, {

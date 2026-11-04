@@ -21,6 +21,19 @@ let deepLinkUrl = null;
 
 let mainWindow;
 
+// GPU stabilite flag'leri (Electron v45 + Windows - agresif)
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-3d-apis');
+app.commandLine.appendSwitch('disable-accelerated-2d-canvas');
+app.commandLine.appendSwitch('disable-accelerated-video-decode');
+app.commandLine.appendSwitch('disable-accelerated-video-encode');
+app.commandLine.appendSwitch('disable-gpu-rasterization');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+app.commandLine.appendSwitch('disable-gpu-process');
+app.commandLine.appendSwitch('disable-gpu-watchdog');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -40,49 +53,12 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // Production: Yerel HTTP sunucusu başlat (file:// protocol sorunlarını önler)
-    const http = require('http');
-    const fs = require('fs');
-    const distDir = path.join(__dirname, '..', 'dist');
-    
-    const server = http.createServer((req, res) => {
-      let filePath = path.join(distDir, req.url === '/' ? 'index.html' : req.url);
-      
-      // MIME type belirle
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeTypes = {
-        '.html': 'text/html',
-        '.js': 'application/javascript',
-        '.css': 'text/css',
-        '.json': 'application/json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.svg': 'image/svg+xml',
-        '.ico': 'image/x-icon',
-      };
-      const contentType = mimeTypes[ext] || 'application/octet-stream';
-      
-      fs.readFile(filePath, (err, data) => {
-        if (err) {
-          res.writeHead(404);
-          res.end('Not found');
-        } else {
-          res.writeHead(200, { 'Content-Type': contentType });
-          res.end(data);
-        }
-      });
-    });
-    
-    const PORT = 4173;
-    server.listen(PORT, '127.0.0.1', () => {
-      console.log(`[Main] Production server running on http://localhost:${PORT}`);
-      mainWindow.loadURL(`http://localhost:${PORT}`);
-    });
-    
-    // App kapanınca sunucuyu durdur
-    app.on('before-quit', () => {
-      server.close();
-    });
+    // Production: Packaged modda dist içeriği asar root'unda (__dirname), dev'da dist/ klasöründe
+    const indexPath = app.isPackaged
+      ? path.join(__dirname, 'index.html')
+      : path.join(__dirname, '..', 'dist', 'index.html');
+    console.log('[Main] Loading index from:', indexPath, '(packaged:', app.isPackaged, ')');
+    mainWindow.loadFile(indexPath);
   }
 
   mainWindow.setTitle('VoiceCan');
