@@ -2,7 +2,7 @@
   "name": "voicecan",
   "productName": "VoiceCan",
   "private": true,
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "VoiceCan - Sesli Sohbet ve Topluluk Platformu",
   "main": "electron/main.cjs",
   "author": "Mehmetcan Bayatlı",
